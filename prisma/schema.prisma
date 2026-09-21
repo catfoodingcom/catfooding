@@ -1,0 +1,168 @@
+// CATFOOD — Prisma schema
+// Local-profile MVP: one machine = one anonymous LocalProfile, which can
+// raise multiple cats. SQLite for local dev; swap the datasource later for
+// a hosted Postgres without touching the app code.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7: connection URLs live in prisma7.config.ts (for Migrate/CLI) and
+// are passed via an `adapter` to the PrismaClient constructor at runtime
+// (see src/lib/db/prisma.ts) — no `url` here.
+datasource db {
+  provider = "sqlite"
+}
+
+model LocalProfile {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  cats      Cat[]
+}
+
+model Cat {
+  id        String       @id @default(cuid())
+  profileId String
+  profile   LocalProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  name        String
+  archetype   String // Hunter | Stalker | Scholar | Degen
+  personality Json // PersonalityTraits
+
+  // Live vitals — 0-100 unless noted
+  health     Float @default(100)
+  energy     Float @default(100)
+  hunger     Float @default(30)
+  mood       Float @default(20) // -100..100
+  focus      Float @default(60)
+  confidence Float @default(50)
+  caution    Float @default(50)
+
+  xp             Int    @default(0)
+  level          Int    @default(1)
+  evolutionStage String @default("Kitten")
+  lives          Int    @default(9)
+
+  currentState   String    @default("idle")
+  currentThought String    @default("...")
+  lastAction     String?
+  cooldownUntil  DateTime?
+
+  autonomyMode String @default("ASK_ME") // PAPER_OBSERVER | ASK_ME | AUTONOMOUS_PAPER
+
+  createdAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt
+
+  portfolio      Portfolio?
+  memories       Memory[]
+  activityEvents ActivityEvent[]
+  riskSettings   RiskSettings?
+}
+
+model Portfolio {
+  id    String @id @default(cuid())
+  catId String @unique
+  cat   Cat    @relation(fields: [catId], references: [id], onDelete: Cascade)
+
+  startingCapital    Float
+  cash               Float
+  realisedPnL        Float @default(0)
+  dailyPnL           Float @default(0)
+  peakPortfolioValue Float
+
+  positions Position[]
+  trades    Trade[]
+
+  updatedAt DateTime @updatedAt
+}
+
+model Position {
+  id          String    @id @default(cuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  token             String
+  symbol            String
+  entryPrice        Float
+  currentPrice      Float
+  quantity          Float
+  stopLoss          Float
+  takeProfit        Float
+  allocationPercent Float
+  strategy          String
+  confidence        Float
+  reason            String
+  openedAt          DateTime @default(now())
+}
+
+model Trade {
+  id          String    @id @default(cuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  token               String
+  symbol              String
+  side                String // BUY | SELL
+  entryPrice          Float
+  exitPrice           Float?
+  quantity            Float
+  positionSizePercent Float
+  openedAt            DateTime  @default(now())
+  closedAt            DateTime?
+  pnl                 Float?
+  pnlPercent          Float?
+  status              String // OPEN | CLOSED | STOPPED_OUT | TOOK_PROFIT
+
+  marketRegime          String
+  signalScores          Json
+  catStateAtEntry       Json
+  reasonCodes           Json
+  naturalLanguageReason String
+  exitReason            String?
+  riskNotes             String?
+  xpEarned              Int     @default(0)
+  memoryId              String?
+}
+
+model Memory {
+  id    String @id @default(cuid())
+  catId String
+  cat   Cat    @relation(fields: [catId], references: [id], onDelete: Cascade)
+
+  timestamp   DateTime @default(now())
+  token       String
+  eventType   String
+  description String
+  lesson      String
+  importance  Float
+  outcome     String // POSITIVE | NEGATIVE | NEUTRAL
+  tags        Json
+}
+
+model ActivityEvent {
+  id    String @id @default(cuid())
+  catId String
+  cat   Cat    @relation(fields: [catId], references: [id], onDelete: Cascade)
+
+  timestamp DateTime @default(now())
+  icon      String
+  message   String
+  xpChange  Int?
+  category  String // SYSTEM | TRADE | RISK | MOOD | MEMORY | LEVEL
+}
+
+model RiskSettings {
+  id    String @id @default(cuid())
+  catId String @unique
+  cat   Cat    @relation(fields: [catId], references: [id], onDelete: Cascade)
+
+  maxTradeAllocationPercent   Float @default(3)
+  maxOpenPositions            Int   @default(4)
+  maxDailyLossPercent         Float @default(5)
+  maxPortfolioDrawdownPercent Float @default(15)
+  minimumLiquidity            Float @default(250000)
+  maximumTokenRiskScore       Float @default(70)
+  cooldownAfterLosses         Int   @default(3)
+  maximumTradesPerDay         Int   @default(8)
+}

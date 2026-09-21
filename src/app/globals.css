@@ -1,0 +1,151 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------
+ * CATFOOD design tokens — cyber Tamagotchi / terminal / indie game.
+ * Off-black + cream base, acid green + hot pink accents. Everything
+ * routes through shadcn's semantic tokens so ui/* components pick this
+ * palette up automatically.
+ * ------------------------------------------------------------------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-display);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.7);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.3);
+  --radius-2xl: calc(var(--radius) * 1.6);
+
+  /* CATFOOD-specific brand tokens, used directly as bg-ink / text-acid etc. */
+  --color-ink: var(--ink);
+  --color-ink-raised: var(--ink-raised);
+  --color-cream: var(--cream);
+  --color-acid: var(--acid);
+  --color-acid-dim: var(--acid-dim);
+  --color-pink: var(--pink);
+  --color-pink-dim: var(--pink-dim);
+}
+
+:root,
+.dark {
+  --ink: #0d0e0c;
+  --ink-raised: #16180f;
+  --cream: #f3efdf;
+  --acid: #baff29;
+  --acid-dim: #7ea82b;
+  --pink: #ff4fa6;
+  --pink-dim: #b23a76;
+
+  --background: var(--ink);
+  --foreground: var(--cream);
+  --card: var(--ink-raised);
+  --card-foreground: var(--cream);
+  --popover: var(--ink-raised);
+  --popover-foreground: var(--cream);
+  --primary: var(--acid);
+  --primary-foreground: #0d0e0c;
+  --secondary: #23261a;
+  --secondary-foreground: var(--cream);
+  --muted: #1c1e14;
+  --muted-foreground: #9a9887;
+  --accent: var(--pink);
+  --accent-foreground: #0d0e0c;
+  --destructive: #ff5d5d;
+  --border: #34362653;
+  --input: #34362680;
+  --ring: var(--acid);
+  --chart-1: var(--acid);
+  --chart-2: var(--pink);
+  --chart-3: #5fd0ff;
+  --chart-4: #ffb84f;
+  --chart-5: #9a9887;
+  --radius: 0.5rem;
+  --sidebar: var(--ink-raised);
+  --sidebar-foreground: var(--cream);
+  --sidebar-primary: var(--acid);
+  --sidebar-primary-foreground: #0d0e0c;
+  --sidebar-accent: var(--pink);
+  --sidebar-accent-foreground: #0d0e0c;
+  --sidebar-border: #34362653;
+  --sidebar-ring: var(--acid);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer utilities {
+  /* Chunky Tamagotchi-window border: a thick outer ring plus a thin inset
+     highlight, standing in for hand-drawn pixel bevels without needing
+     actual pixel art. */
+  .chunky-border {
+    border: 2px solid var(--cream);
+    box-shadow:
+      0 0 0 1px #000,
+      4px 4px 0 0 #000;
+  }
+  .chunky-border-acid {
+    border: 2px solid var(--acid);
+    box-shadow:
+      0 0 0 1px #000,
+      4px 4px 0 0 color-mix(in oklab, var(--acid) 55%, transparent);
+  }
+  .chunky-border-pink {
+    border: 2px solid var(--pink);
+    box-shadow:
+      0 0 0 1px #000,
+      4px 4px 0 0 color-mix(in oklab, var(--pink) 55%, transparent);
+  }
+
+  .crt-scanlines {
+    background-image: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 3px);
+  }
+
+  .text-shadow-pixel {
+    text-shadow: 2px 2px 0 #000;
+  }
+}
