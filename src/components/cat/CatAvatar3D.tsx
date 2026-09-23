@@ -44,6 +44,9 @@ interface CatAvatar3DProps {
    * lives, relative to /public. Drop the Meshy export at
    * catfood/public/models/cat.glb and this just works. */
   modelUrl?: string;
+  /** Uses a neutral loading shell instead of flashing the legacy SVG avatar
+   * while the GLB is loading. Error fallback still uses SVG for resilience. */
+  showSvgWhileLoading?: boolean;
 }
 
 const DEFAULT_MODEL_URL = "/models/cat.glb";
@@ -80,8 +83,25 @@ class ModelErrorBoundary extends Component<{ children: ReactNode; fallback: Reac
  * contract, so nothing else needs to change to swap it in. Renders the
  * SVG avatar as both the loading placeholder and the permanent fallback
  * if no GLB has been provided yet, so this is always safe to use. */
-export function CatAvatar3D({ state, mood, size = 220, evolutionStage, hunger, modelUrl }: CatAvatar3DProps) {
+export function CatAvatar3D({
+  state,
+  mood,
+  size = 220,
+  evolutionStage,
+  hunger,
+  modelUrl,
+  showSvgWhileLoading = true,
+}: CatAvatar3DProps) {
   const fallback = <CatAvatar state={state} mood={mood} size={size} />;
+  const loadingFallback = showSvgWhileLoading ? (
+    fallback
+  ) : (
+    <div
+      aria-hidden="true"
+      className="rounded-full border border-border/70 bg-ink-raised/70"
+      style={{ width: size, height: size }}
+    />
+  );
   const glow = GLOW_BY_STATE[state];
   const isHungry = (hunger ?? 0) >= HUNGRY_THRESHOLD;
   // Hunger is the more urgent "needs attention" signal, so it wins if both
@@ -98,7 +118,7 @@ export function CatAvatar3D({ state, mood, size = 220, evolutionStage, hunger, m
       />
       <div className="relative" style={{ width: size, height: size }}>
         <ModelErrorBoundary fallback={fallback}>
-          <Suspense fallback={fallback}>
+          <Suspense fallback={loadingFallback}>
             <Canvas camera={{ position: [0, 0, 4.2], fov: 30 }} dpr={[1, 2]}>
               <ambientLight intensity={0.8} />
               <directionalLight position={[2, 3, 2]} intensity={1.4} />

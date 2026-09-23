@@ -97,6 +97,7 @@ export default function LandingPage() {
             size={260}
             evolutionStage={sim?.cat.evolutionStage ?? "Hunter"}
             hunger={sim?.cat.hunger ?? 25}
+            showSvgWhileLoading={false}
           />
         </div>
       </main>
