@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 import { useRequireCat } from "@/lib/hooks/useRequireCat";
-import { CatAvatar } from "@/components/cat/CatAvatar";
+import { CatAvatar3D as CatAvatar } from "@/components/cat/CatAvatar3D";
 import { CatThoughtBubble } from "@/components/cat/CatThoughtBubble";
 import { CatStats, MoodDisplay } from "@/components/cat/CatStats";
 import { XPBar } from "@/components/cat/XPBar";
@@ -109,7 +109,7 @@ export default function CatRoomPage() {
               </div>
 
               <div className="flex flex-col items-center py-4">
-                <CatAvatar state={cat.currentState} mood={cat.mood} size={200} />
+                <CatAvatar state={cat.currentState} mood={cat.mood} size={200} evolutionStage={cat.evolutionStage} hunger={cat.hunger} />
                 <div className="mt-3 w-full max-w-sm">
                   <CatThoughtBubble thought={cat.currentThought} />
                 </div>
