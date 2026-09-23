@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { CatAvatar } from "@/components/cat/CatAvatar";
+import { CatAvatar3D as CatAvatar } from "@/components/cat/CatAvatar3D";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 
 const FEATURES = [
@@ -91,7 +91,13 @@ export default function LandingPage() {
           <span className="absolute top-3 left-4 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             live preview
           </span>
-          <CatAvatar state="curious" mood={40} size={260} />
+          <CatAvatar
+            state={sim?.cat.currentState ?? "curious"}
+            mood={sim?.cat.mood ?? 40}
+            size={260}
+            evolutionStage={sim?.cat.evolutionStage ?? "Hunter"}
+            hunger={sim?.cat.hunger ?? 25}
+          />
         </div>
       </main>
     </div>
