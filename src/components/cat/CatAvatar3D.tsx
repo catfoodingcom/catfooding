@@ -93,16 +93,20 @@ export function CatAvatar3D({
   showSvgWhileLoading = true,
 }: CatAvatar3DProps) {
   const fallback = <CatAvatar state={state} mood={mood} size={size} />;
+  const glow = GLOW_BY_STATE[state];
   const loadingFallback = showSvgWhileLoading ? (
     fallback
   ) : (
     <div
       aria-hidden="true"
-      className="rounded-full border border-border/70 bg-ink-raised/70"
-      style={{ width: size, height: size }}
+      className="rounded-full"
+      style={{
+        width: size,
+        height: size,
+        background: `radial-gradient(circle at 50% 42%, ${glow}33 0%, ${glow}1a 36%, transparent 74%)`,
+      }}
     />
   );
-  const glow = GLOW_BY_STATE[state];
   const isHungry = (hunger ?? 0) >= HUNGRY_THRESHOLD;
   // Hunger is the more urgent "needs attention" signal, so it wins if both
   // happen to apply (very hungry and dozing off at the same time).
