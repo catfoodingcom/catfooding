@@ -179,8 +179,10 @@ export const useCatFoodStore = create<CatFoodStore>()(
     set({
       sim: {
         ...sim,
-        // feeding is a positive beat: clears any refusal, perks the cat up, logs green
-        cat: { ...sim.cat, hunger: satiateHunger(sim.cat.hunger, 35), mood: Math.min(100, sim.cat.mood + 8), currentState: "celebrating" },
+        // feeding is a positive beat: clears any refusal, resets to a calm idle (not
+        // the celebrating state, whose strong green glow was washing the cat green),
+        // lifts mood, logs a green activity line.
+        cat: { ...sim.cat, hunger: satiateHunger(sim.cat.hunger, 35), mood: Math.min(100, sim.cat.mood + 8), currentState: "idle" },
         lastRefusal: null,
         activity: [
           { id: `feed_${Date.now()}`, timestamp: Date.now(), icon: "😻", message: `You fed ${sim.cat.name}. Mood up, back on the hunt.`, category: "TRADE" as const },
