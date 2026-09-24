@@ -58,17 +58,20 @@ const MOTION_PROFILE: Record<
 // emissive tint rather than a full recolor — until real facial expressions
 // exist (see below), this is the main per-state visual differentiation on
 // a face model that's otherwise just sitting there with one fixed shape.
+// Kept intentionally FAINT — the state color is carried by the halo BEHIND the cat
+// (CatAvatar3D), so this on-material tint is only a whisper; the cat keeps its true
+// texture/color. (Was up to 0.45, which washed the whole cat in the state color.)
 const STATE_GLOW: Record<CatBehaviorState, { color: string; intensity: number }> = {
-  sleeping: { color: "#5fd0ff", intensity: 0.08 },
-  idle: { color: "#baff29", intensity: 0.05 },
-  watching: { color: "#baff29", intensity: 0.12 },
-  stalking: { color: "#ffb84f", intensity: 0.16 },
-  hunting: { color: "#ff4fa6", intensity: 0.25 },
-  celebrating: { color: "#baff29", intensity: 0.3 },
-  injured: { color: "#ff5d5d", intensity: 0.35 },
-  nervous: { color: "#ff5d5d", intensity: 0.45 },
-  curious: { color: "#5fd0ff", intensity: 0.14 },
-  bored: { color: "#9a9887", intensity: 0.05 },
+  sleeping: { color: "#5fd0ff", intensity: 0.03 },
+  idle: { color: "#baff29", intensity: 0.02 },
+  watching: { color: "#baff29", intensity: 0.03 },
+  stalking: { color: "#ffb84f", intensity: 0.04 },
+  hunting: { color: "#ff4fa6", intensity: 0.06 },
+  celebrating: { color: "#baff29", intensity: 0.06 },
+  injured: { color: "#ff5d5d", intensity: 0.08 },
+  nervous: { color: "#ff5d5d", intensity: 0.1 },
+  curious: { color: "#5fd0ff", intensity: 0.03 },
+  bored: { color: "#9a9887", intensity: 0.02 },
 };
 
 // If a future export adds Blender shape keys (glTF morph targets) for real
