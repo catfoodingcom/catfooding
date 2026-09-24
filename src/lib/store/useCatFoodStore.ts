@@ -224,6 +224,9 @@ export const useCatFoodStore = create<CatFoodStore>()(
       partialize: (state) => ({ sim: state.sim, speed: state.speed }),
       onRehydrateStorage: () => (state, error) => {
         if (error) console.error("Failed to rehydrate CATFOOD state:", error);
+        // lastRefusal is a transient demo beat — don't carry a stale REFUSED card
+        // across a page refresh.
+        if (state?.sim) state.sim = { ...state.sim, lastRefusal: null };
         state?.setHasHydrated(true);
       },
     }
