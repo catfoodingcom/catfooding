@@ -121,8 +121,8 @@ export function CatAvatar3D({
         className="absolute inset-0 rounded-full blur-2xl"
         // Radial halo (bright behind the cat, fading to transparent) instead of a
         // solid color field — keeps the glow BEHIND the cat so the cat reads clearly.
-        style={{ background: `radial-gradient(circle at 50% 46%, ${glow}66 0%, ${glow}22 40%, transparent 70%)` }}
-        animate={{ opacity: [0.3, 0.55, 0.3] }}
+        style={{ background: `radial-gradient(circle at 50% 46%, ${glow}cc 0%, ${glow}55 44%, transparent 74%)` }}
+        animate={{ opacity: [0.5, 0.85, 0.5] }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
       />
       <div className="relative" style={{ width: size, height: size }}>
