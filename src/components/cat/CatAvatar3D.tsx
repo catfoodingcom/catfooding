@@ -108,10 +108,12 @@ export function CatAvatar3D({
     />
   );
   const isHungry = (hunger ?? 0) >= HUNGRY_THRESHOLD;
-  // Hunger is the more urgent "needs attention" signal, so it wins if both
-  // happen to apply (very hungry and dozing off at the same time). The refuse
-  // beat also reads through the RED nervous glow + the REFUSED card.
-  const resolvedModelUrl = modelUrl ?? (isHungry ? HUNGRY_MODEL_URL : state === "sleeping" ? SLEEPY_MODEL_URL : DEFAULT_MODEL_URL);
+  // Model-swap "expressions": nervous (a risk veto) recoils to the hungry model,
+  // hunger swaps to it too, sleeping to the sleepy model, else the default. These
+  // render on Vercel; local dev shows white only because of the Draco/webp decoder
+  // gap (all GLBs, not these specifically). The refuse also reads via RED glow + card.
+  const resolvedModelUrl =
+    modelUrl ?? (state === "nervous" || isHungry ? HUNGRY_MODEL_URL : state === "sleeping" ? SLEEPY_MODEL_URL : DEFAULT_MODEL_URL);
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
