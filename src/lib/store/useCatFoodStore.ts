@@ -77,7 +77,9 @@ export const useCatFoodStore = create<CatFoodStore>()(
 
   start: () => {
     if (intervalHandle || !get().sim) return;
-    set({ isRunning: true });
+    const sim = get().sim!;
+    // wake the cat if it dozed off while paused
+    set({ isRunning: true, sim: sim.cat.currentState === "sleeping" ? { ...sim, cat: { ...sim.cat, currentState: "idle" } } : sim });
     intervalHandle = setInterval(() => get().tick(), TICK_INTERVAL_MS[get().speed]);
   },
 
@@ -86,7 +88,9 @@ export const useCatFoodStore = create<CatFoodStore>()(
       clearInterval(intervalHandle);
       intervalHandle = null;
     }
-    set({ isRunning: false });
+    const sim = get().sim;
+    // pause = the cat dozes off → the sleepy model (ticks are stopped, so it holds)
+    set(sim ? { isRunning: false, sim: { ...sim, cat: { ...sim.cat, currentState: "sleeping" } } } : { isRunning: false });
   },
 
   setSpeed: (speed) => {
