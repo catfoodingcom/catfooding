@@ -55,7 +55,7 @@ export default function LandingPage() {
           </motion.h1>
 
           <p className="font-mono text-sm text-muted-foreground max-w-md leading-relaxed">
-            An autonomous AI cat that watches Solana, paper-trades tokens, remembers what happens, and evolves. Its
+            An autonomous AI cat that watches the CoAgentic X&nbsp;Layer tokenized-equity index, paper-trades the xStocks, remembers what happens, and evolves. Its
             mood, health, and hunger <em className="text-cream not-italic">are</em> the trading agent&apos;s
             interface.
           </p>

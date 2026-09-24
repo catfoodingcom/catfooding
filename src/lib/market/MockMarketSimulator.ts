@@ -21,6 +21,8 @@ export type MarketScenario = "BULL" | "BEAR" | "VOLATILITY_SPIKE" | "LIQUIDITY_C
  * the whole market. This is intentionally simple — realistic *shape*, not a
  * faithful backtest engine.
  */
+const BENCH = TOKEN_UNIVERSE[0]; // depth benchmark for relative strength / regime (was SOL, now NVDAx)
+
 export class MockMarketSimulator {
   private rand: () => number;
   private tick = 0;
@@ -81,7 +83,7 @@ export class MockMarketSimulator {
     this.regimeDrift = clamp(this.regimeDrift * 0.97 + gaussian(this.rand) * 0.05, -1, 1);
     this.volatilityFloor = Math.max(0, this.volatilityFloor - 1.5);
 
-    const sol = this.tokens.SOL;
+    const bench = this.tokens[BENCH];
 
     for (const symbol of TOKEN_UNIVERSE) {
       const t = this.tokens[symbol];
@@ -125,7 +127,7 @@ export class MockMarketSimulator {
     // relative strength vs SOL benchmark, computed after everyone updates
     for (const symbol of TOKEN_UNIVERSE) {
       const t = this.tokens[symbol];
-      t.relativeStrength = clamp(t.momentum - (symbol === "SOL" ? 0 : sol.momentum) * 0.6, -100, 100);
+      t.relativeStrength = clamp(t.momentum - (symbol === BENCH ? 0 : bench.momentum) * 0.6, -100, 100);
     }
 
     return this.getSnapshot();
@@ -138,8 +140,8 @@ export class MockMarketSimulator {
     const breadth = values.filter((t) => t.momentum > 10).length / values.length;
 
     if (avgVol > 55) return "HIGH_VOLATILITY";
-    if (this.tokens.SOL.momentum > 15 && avgMomentum > 5 && breadth > 0.5) return "RISK_ON";
-    if (this.tokens.SOL.momentum < -15 && avgMomentum < -5) return "RISK_OFF";
+    if (this.tokens[BENCH].momentum > 15 && avgMomentum > 5 && breadth > 0.5) return "RISK_ON";
+    if (this.tokens[BENCH].momentum < -15 && avgMomentum < -5) return "RISK_OFF";
     return "NEUTRAL";
   }
 
@@ -156,17 +158,17 @@ export class MockMarketSimulator {
         this.volatilityFloor = 55;
         break;
       case "LIQUIDITY_COLLAPSE": {
-        const sym = token ?? "BONK";
+        const sym = token ?? TOKEN_UNIVERSE[TOKEN_UNIVERSE.length - 1];
         this.scenarioOverrides[sym] = { liquidityMult: 0.08, momentumBias: -20, ticksRemaining: 12 };
         break;
       }
       case "WINNING_SETUP": {
-        const sym = token ?? "JUP";
+        const sym = token ?? TOKEN_UNIVERSE[0];
         this.scenarioOverrides[sym] = { liquidityMult: 1.4, momentumBias: 55, ticksRemaining: 20 };
         break;
       }
       case "LOSING_SETUP": {
-        const sym = token ?? "WIF";
+        const sym = token ?? TOKEN_UNIVERSE[4];
         this.scenarioOverrides[sym] = { liquidityMult: 0.5, momentumBias: -45, ticksRemaining: 20 };
         break;
       }

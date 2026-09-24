@@ -1,4 +1,6 @@
-export const TOKEN_UNIVERSE = ["SOL", "JUP", "BONK", "WIF", "PYTH", "JTO"] as const;
+// CoAgentic X Layer tokenized-equity index — the six Steward constituents.
+// Order matters: index 0 is the depth benchmark (was SOL), so the deepest name leads.
+export const TOKEN_UNIVERSE = ["NVDAx", "AAPLx", "TSLAx", "SPCXx", "MSTRx", "CRCLx"] as const;
 export type TokenSymbol = (typeof TOKEN_UNIVERSE)[number];
 
 export interface TokenMetrics {

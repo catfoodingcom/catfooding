@@ -5,8 +5,8 @@ import { MockMarketSimulator, type MarketScenario } from "./MockMarketSimulator"
 /**
  * Everything that reads market data goes through this interface. The MVP
  * ships MockMarketDataProvider only — the app MUST work with zero API keys.
- * A future PublicApiMarketDataProvider (e.g. Jupiter price API + a DEX
- * aggregator for liquidity) can implement the same shape and be swapped in
+ * A future CoAgenticMarketDataProvider (the tv.coagentic.markets /api/public/*
+ * feeds — Oracle liquidity, peg, venue price) can implement the same shape and be swapped in
  * via getMarketDataProvider() without touching SignalEngine, DecisionEngine,
  * or any UI component.
  */

@@ -49,7 +49,7 @@ export default function AdoptPage() {
           transition={{ delay: 0.6 }}
           className="chunky-border bg-ink-raised rounded-full px-5 py-2 font-mono text-sm text-acid"
         >
-          &ldquo;Smells like Solana.&rdquo;
+          &ldquo;Smells like fresh tape.&rdquo;
         </motion.p>
       </div>
     );

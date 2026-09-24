@@ -10,11 +10,16 @@ export interface TokenProfile {
   volMultiplier: number;
 }
 
+// Seeded from real CoAgentic feeds (Oracle liquidity + venue price, ~2026-09-23):
+// basePrice = the xStock's real level, baseLiquidity = its X Layer pool depth,
+// baseRiskScore rises with thinness/volatility (NVDAx deepest → lowest; MSTRx/CRCLx
+// thin+swingy → highest). volMultiplier: equities are calmer than memecoins, but
+// MSTR/SpaceX still swing. The sim walks from these; the shape is real.
 export const TOKEN_PROFILES: Record<TokenSymbol, TokenProfile> = {
-  SOL: { symbol: "SOL", name: "Solana", basePrice: 148, baseLiquidity: 60_000_000, baseRiskScore: 15, volMultiplier: 0.7 },
-  JUP: { symbol: "JUP", name: "Jupiter", basePrice: 0.86, baseLiquidity: 9_000_000, baseRiskScore: 35, volMultiplier: 1.1 },
-  BONK: { symbol: "BONK", name: "Bonk", basePrice: 0.000021, baseLiquidity: 4_200_000, baseRiskScore: 68, volMultiplier: 2.3 },
-  WIF: { symbol: "WIF", name: "dogwifhat", basePrice: 1.95, baseLiquidity: 5_500_000, baseRiskScore: 62, volMultiplier: 2.0 },
-  PYTH: { symbol: "PYTH", name: "Pyth Network", basePrice: 0.32, baseLiquidity: 3_400_000, baseRiskScore: 44, volMultiplier: 1.3 },
-  JTO: { symbol: "JTO", name: "Jito", basePrice: 2.45, baseLiquidity: 3_800_000, baseRiskScore: 40, volMultiplier: 1.2 },
+  NVDAx: { symbol: "NVDAx", name: "NVIDIA xStock", basePrice: 222, baseLiquidity: 1_030_000, baseRiskScore: 12, volMultiplier: 0.8 },
+  AAPLx: { symbol: "AAPLx", name: "Apple xStock", basePrice: 336, baseLiquidity: 794_000, baseRiskScore: 18, volMultiplier: 0.85 },
+  TSLAx: { symbol: "TSLAx", name: "Tesla xStock", basePrice: 364, baseLiquidity: 639_000, baseRiskScore: 32, volMultiplier: 1.25 },
+  SPCXx: { symbol: "SPCXx", name: "SpaceX xStock", basePrice: 152, baseLiquidity: 724_000, baseRiskScore: 40, volMultiplier: 1.4 },
+  MSTRx: { symbol: "MSTRx", name: "Strategy xStock", basePrice: 154, baseLiquidity: 583_000, baseRiskScore: 46, volMultiplier: 1.7 },
+  CRCLx: { symbol: "CRCLx", name: "Circle xStock", basePrice: 92, baseLiquidity: 568_000, baseRiskScore: 42, volMultiplier: 1.45 },
 };
