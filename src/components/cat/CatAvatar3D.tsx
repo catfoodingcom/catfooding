@@ -54,10 +54,12 @@ const HUNGRY_MODEL_URL = "/models/cat-hungry.glb";
 const SLEEPY_MODEL_URL = "/models/cat-sleepy.glb";
 const HUNGRY_THRESHOLD = 70;
 
-// Only the default model is used right now — the cat-hungry / cat-sleepy exports
-// render blank (white), so preloading + swapping to them caused a white square on
-// refresh. Preload just the one good model. (Re-export those GLBs to re-enable swaps.)
+// All small (a few hundred KB each) — preloading them means a model swap
+// (crossing the hunger threshold, falling asleep) doesn't hit a Suspense
+// flash back to the SVG fallback the first time it happens.
 useGLTF.preload(DEFAULT_MODEL_URL);
+useGLTF.preload(HUNGRY_MODEL_URL);
+useGLTF.preload(SLEEPY_MODEL_URL);
 
 /** Suspense catches the "still loading" case; it does not catch errors.
  * A missing/broken GLB (e.g. nothing has been dropped into
@@ -106,10 +108,10 @@ export function CatAvatar3D({
     />
   );
   const isHungry = (hunger ?? 0) >= HUNGRY_THRESHOLD;
-  // Always the known-good model (cat-hungry/cat-sleepy exports render white). Per-state
-  // difference is carried by glow + motion; the refuse beat by the RED glow + REFUSED card.
-  void isHungry; void HUNGRY_MODEL_URL; void SLEEPY_MODEL_URL;
-  const resolvedModelUrl = modelUrl ?? DEFAULT_MODEL_URL;
+  // Hunger is the more urgent "needs attention" signal, so it wins if both
+  // happen to apply (very hungry and dozing off at the same time). The refuse
+  // beat also reads through the RED nervous glow + the REFUSED card.
+  const resolvedModelUrl = modelUrl ?? (isHungry ? HUNGRY_MODEL_URL : state === "sleeping" ? SLEEPY_MODEL_URL : DEFAULT_MODEL_URL);
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
