@@ -208,6 +208,7 @@ export const useCatFoodStore = create<CatFoodStore>()(
             sim: {
               ...sim,
               cat: { ...sim.cat, currentState: "nervous" },
+              pendingProposal: null, // clear any PREY-SPOTTED card so the REFUSED card takes the slot
               lastRefusal: refusal,
               activity: [
                 { id: `trap_${Date.now()}`, timestamp: Date.now(), icon: "🙅", message: refusal.naturalLanguageReason, category: "RISK" as const },
