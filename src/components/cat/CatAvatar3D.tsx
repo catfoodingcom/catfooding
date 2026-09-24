@@ -19,7 +19,7 @@ const GLOW_BY_STATE: Record<CatBehaviorState, string> = {
   hunting: "#ff4fa6",
   celebrating: "#baff29",
   injured: "#ff5d5d",
-  nervous: "#ffb84f",
+  nervous: "#ff5d5d",
   curious: "#5fd0ff",
   bored: "#9a9887",
 };
@@ -51,7 +51,7 @@ interface CatAvatar3DProps {
 
 const DEFAULT_MODEL_URL = "/models/cat.glb";
 const HUNGRY_MODEL_URL = "/models/cat-hungry.glb";
-const SLEEPY_MODEL_URL = "/models/cat-sleepy.glb";
+const SLEEPY_MODEL_URL = DEFAULT_MODEL_URL; // no dedicated sleepy GLB shipped — use default (avoids a 404 → SVG fallback)
 const HUNGRY_THRESHOLD = 70;
 
 // All small (a few hundred KB each) — preloading them means a model swap
@@ -110,7 +110,11 @@ export function CatAvatar3D({
   const isHungry = (hunger ?? 0) >= HUNGRY_THRESHOLD;
   // Hunger is the more urgent "needs attention" signal, so it wins if both
   // happen to apply (very hungry and dozing off at the same time).
-  const resolvedModelUrl = modelUrl ?? (isHungry ? HUNGRY_MODEL_URL : state === "sleeping" ? SLEEPY_MODEL_URL : DEFAULT_MODEL_URL);
+  // "nervous" is the state a risk-veto puts the cat in — swap to a distinct model so
+  // the refusal reads visually, not just as a glow. (cat-hungry is the only extra
+  // avatar GLB shipped; it recoils differently enough to sell the "not this one".)
+  const resolvedModelUrl =
+    modelUrl ?? (state === "nervous" ? HUNGRY_MODEL_URL : isHungry ? HUNGRY_MODEL_URL : state === "sleeping" ? SLEEPY_MODEL_URL : DEFAULT_MODEL_URL);
 
   return (
     <div className="relative" style={{ width: size, height: size }}>

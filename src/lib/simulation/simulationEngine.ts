@@ -38,6 +38,7 @@ export function runTick(state: SimulationState, market: MarketSnapshot): TickRes
   let tradesToday = state.tradesToday;
   let ticksSinceDayStart = state.ticksSinceDayStart + 1;
   let pendingProposal = state.pendingProposal;
+  let lastRefusal = state.lastRefusal;
   const narrator = getNarrator();
 
   if (ticksSinceDayStart >= TICKS_PER_SIM_DAY) {
@@ -161,8 +162,10 @@ export function runTick(state: SimulationState, market: MarketSnapshot): TickRes
       cat.currentState = decision.vetoedByRisk ? "nervous" : cat.hunger > 60 ? "curious" : "bored";
       if (decision.vetoedByRisk) {
         activity = pushActivity(activity, { icon: "🙅", message: decision.naturalLanguageReason, category: "RISK" });
+        lastRefusal = decision; // surface the prominent REFUSED card
       }
     } else if (decision.action === "BUY" && decision.token) {
+      lastRefusal = null; // a successful hunt clears the last refusal
       if (cat.autonomyMode === "PAPER_OBSERVER") {
         cat.currentState = "watching";
         activity = pushActivity(activity, {
@@ -212,6 +215,7 @@ export function runTick(state: SimulationState, market: MarketSnapshot): TickRes
       winStreak,
       lossStreak,
       pendingProposal,
+      lastRefusal,
       equityCurve,
     },
     market,

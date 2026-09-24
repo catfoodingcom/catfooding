@@ -66,7 +66,7 @@ const STATE_GLOW: Record<CatBehaviorState, { color: string; intensity: number }>
   hunting: { color: "#ff4fa6", intensity: 0.25 },
   celebrating: { color: "#baff29", intensity: 0.3 },
   injured: { color: "#ff5d5d", intensity: 0.35 },
-  nervous: { color: "#ffb84f", intensity: 0.2 },
+  nervous: { color: "#ff5d5d", intensity: 0.45 },
   curious: { color: "#5fd0ff", intensity: 0.14 },
   bored: { color: "#9a9887", intensity: 0.05 },
 };

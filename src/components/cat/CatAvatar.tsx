@@ -17,7 +17,7 @@ const GLOW_BY_STATE: Record<CatBehaviorState, string> = {
   hunting: "#ff4fa6",
   celebrating: "#baff29",
   injured: "#ff5d5d",
-  nervous: "#ffb84f",
+  nervous: "#ff5d5d",
   curious: "#5fd0ff",
   bored: "#9a9887",
 };

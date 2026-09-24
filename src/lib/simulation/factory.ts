@@ -63,6 +63,7 @@ export function createSimulationState(input: { name: string; archetype: Archetyp
     winStreak: 0,
     lossStreak: 0,
     pendingProposal: null,
+    lastRefusal: null,
     equityCurve: [{ timestamp: Date.now(), value: input.startingCapital }],
   };
 }
@@ -180,6 +181,7 @@ export function createDemoSeed(): SimulationState {
     winStreak: 1,
     lossStreak: 0,
     pendingProposal: null,
+    lastRefusal: null,
     equityCurve: Array.from({ length: 12 }, (_, i) => ({
       timestamp: Date.now() - (11 - i) * 1000 * 60 * 8,
       value: 1000 + i * 24 + Math.sin(i) * 15,

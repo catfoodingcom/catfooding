@@ -10,6 +10,7 @@ import { CatStats, MoodDisplay } from "@/components/cat/CatStats";
 import { XPBar } from "@/components/cat/XPBar";
 import { EvolutionProgress } from "@/components/cat/EvolutionProgress";
 import { PreyCard } from "@/components/trading/PreyCard";
+import { RefusedCard } from "@/components/trading/RefusedCard";
 import { MarketRegimeIndicator } from "@/components/trading/MarketRegimeIndicator";
 import { RiskPanel } from "@/components/trading/RiskPanel";
 import { PortfolioSummary } from "@/components/trading/PortfolioSummary";
@@ -138,6 +139,10 @@ export default function CatRoomPage() {
                 onApprove={approveProposal}
                 onDecline={declineProposal}
               />
+            )}
+
+            {!sim.pendingProposal && sim.lastRefusal && (
+              <RefusedCard decision={sim.lastRefusal} catName={cat.name} />
             )}
 
             <div className="chunky-border bg-ink-raised rounded-2xl p-4">

@@ -17,6 +17,9 @@ export interface SimulationState {
   winStreak: number;
   lossStreak: number;
   pendingProposal: AgentDecision | null;
+  /** Most recent risk-vetoed decision — drives the prominent "REFUSED" card.
+   * Set when Risk blocks a proposal; cleared when the cat next hunts. */
+  lastRefusal: AgentDecision | null;
   equityCurve: EquityPoint[];
 }
 
