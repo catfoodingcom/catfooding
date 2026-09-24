@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { Archetype, AutonomyMode, MarketSnapshot, RiskSettings, TokenSymbol } from "@/lib/types";
+import type { AgentDecision, Archetype, AutonomyMode, MarketSnapshot, RiskSettings, TokenSymbol } from "@/lib/types";
 import { MockMarketDataProvider } from "@/lib/market/MarketDataProvider";
 import type { MarketScenario } from "@/lib/market/MockMarketSimulator";
 import { createSimulationState, createDemoSeed } from "@/lib/simulation/factory";
@@ -186,6 +186,36 @@ export const useCatFoodStore = create<CatFoodStore>()(
 
       applyScenario: (scenario, token) => {
         marketProvider.applyScenario(scenario, token);
+        // TRAP is a DEMO control: rather than wait for the 6s organic loop to maybe
+        // pick the trap leg (and be lost among ambient vetoes), inject a distinctive,
+        // attributable CRCLx refusal on the spot — REFUSED card + nervous cat + 🙅 line,
+        // unmistakably from the click. The market override still applies underneath.
+        if (scenario === "TRAP") {
+          const sim = get().sim;
+          if (!sim) return;
+          const sym = (token ?? "CRCLx") as TokenSymbol;
+          const refusal: AgentDecision = {
+            action: "WATCH",
+            token: sym,
+            confidence: 0,
+            positionSizePercent: 0,
+            reasonCodes: ["LIQUIDITY_BELOW_MINIMUM"],
+            naturalLanguageReason: `${sim.cat.name} spotted ${sym} running hot — then saw its liquidity collapse below the tradable floor. Trap. Passing.`,
+            riskNotes: "LIQUIDITY_BELOW_MINIMUM",
+            vetoedByRisk: true,
+          };
+          set({
+            sim: {
+              ...sim,
+              cat: { ...sim.cat, currentState: "nervous" },
+              lastRefusal: refusal,
+              activity: [
+                { id: `trap_${Date.now()}`, timestamp: Date.now(), icon: "🙅", message: refusal.naturalLanguageReason, category: "RISK" as const },
+                ...sim.activity,
+              ].slice(0, 200),
+            },
+          });
+        }
       },
     }),
     {
