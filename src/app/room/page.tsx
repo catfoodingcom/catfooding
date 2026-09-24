@@ -4,7 +4,10 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 import { useRequireCat } from "@/lib/hooks/useRequireCat";
-import { CatAvatar3D as CatAvatar } from "@/components/cat/CatAvatar3D";
+// SVG avatar (reliable everywhere) instead of CatAvatar3D — the GLBs use
+// Draco + EXT_texture_webp and render white when those decoders aren't available
+// (e.g. local dev). The SVG cat is expressive (per-state eyes/mouth + glow).
+import { CatAvatar } from "@/components/cat/CatAvatar";
 import { CatThoughtBubble } from "@/components/cat/CatThoughtBubble";
 import { CatStats, MoodDisplay } from "@/components/cat/CatStats";
 import { XPBar } from "@/components/cat/XPBar";
@@ -110,7 +113,7 @@ export default function CatRoomPage() {
               </div>
 
               <div className="flex flex-col items-center py-4">
-                <CatAvatar state={cat.currentState} mood={cat.mood} size={200} evolutionStage={cat.evolutionStage} hunger={cat.hunger} />
+                <CatAvatar state={cat.currentState} mood={cat.mood} size={200} />
                 <div className="mt-3 w-full max-w-sm">
                   <CatThoughtBubble thought={cat.currentThought} />
                 </div>
