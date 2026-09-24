@@ -163,8 +163,12 @@ export class MockMarketSimulator {
         break;
       }
       case "WINNING_SETUP": {
+        // Strong, tradable leg — set the signal immediately (don't wait for the ramp)
+        // so the injected PREY-SPOTTED card's bars read strong on click.
         const sym = token ?? TOKEN_UNIVERSE[0];
-        this.scenarioOverrides[sym] = { liquidityMult: 1.4, momentumBias: 55, ticksRemaining: 20 };
+        const t = this.tokens[sym];
+        t.momentum = 82; t.trend = 66; t.volumeAcceleration = 76;
+        this.scenarioOverrides[sym] = { liquidityMult: 1.4, momentumBias: 60, ticksRemaining: 24 };
         break;
       }
       case "LOSING_SETUP": {

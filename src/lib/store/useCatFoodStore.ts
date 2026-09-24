@@ -179,7 +179,13 @@ export const useCatFoodStore = create<CatFoodStore>()(
     set({
       sim: {
         ...sim,
-        cat: { ...sim.cat, hunger: satiateHunger(sim.cat.hunger, 35), mood: Math.min(100, sim.cat.mood + 8) },
+        // feeding is a positive beat: clears any refusal, perks the cat up, logs green
+        cat: { ...sim.cat, hunger: satiateHunger(sim.cat.hunger, 35), mood: Math.min(100, sim.cat.mood + 8), currentState: "celebrating" },
+        lastRefusal: null,
+        activity: [
+          { id: `feed_${Date.now()}`, timestamp: Date.now(), icon: "😻", message: `You fed ${sim.cat.name}. Mood up, back on the hunt.`, category: "TRADE" as const },
+          ...sim.activity,
+        ].slice(0, 200),
       },
     });
   },
@@ -212,6 +218,36 @@ export const useCatFoodStore = create<CatFoodStore>()(
               lastRefusal: refusal,
               activity: [
                 { id: `trap_${Date.now()}`, timestamp: Date.now(), icon: "🙅", message: refusal.naturalLanguageReason, category: "RISK" as const },
+                ...sim.activity,
+              ].slice(0, 200),
+            },
+          });
+        }
+        // WINNING_SETUP is the positive counterpart to TRAP: inject a strong PREY-SPOTTED
+        // proposal on the spot (the market override below makes its signal bars read strong),
+        // so clicking it immediately shows the cat hunting good food — the hunt beat.
+        if (scenario === "WINNING_SETUP") {
+          const sim = get().sim;
+          if (!sim) return;
+          const sym = (token ?? "NVDAx") as TokenSymbol;
+          const proposal: AgentDecision = {
+            action: "BUY",
+            token: sym,
+            confidence: 84,
+            positionSizePercent: 3,
+            reasonCodes: ["HIGH_MOMENTUM", "VOLUME_ACCELERATION", "STRONG_LIQUIDITY"],
+            naturalLanguageReason: `${sim.cat.name} spotted ${sym} breaking out — strong momentum, volume surging, and deep liquidity to trade it clean.`,
+            riskNotes: null,
+            vetoedByRisk: false,
+          };
+          set({
+            sim: {
+              ...sim,
+              cat: { ...sim.cat, currentState: "stalking" },
+              lastRefusal: null,
+              pendingProposal: proposal,
+              activity: [
+                { id: `win_${Date.now()}`, timestamp: Date.now(), icon: "🐦", message: `PREY SPOTTED: ${sym}. Awaiting your call.`, category: "TRADE" as const },
                 ...sim.activity,
               ].slice(0, 200),
             },
