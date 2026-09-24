@@ -113,7 +113,7 @@ export default function CatRoomPage() {
               </div>
 
               <div className="flex flex-col items-center py-4">
-                <CatAvatar state={cat.currentState} mood={cat.mood} size={200} evolutionStage={cat.evolutionStage} hunger={cat.hunger} showSvgWhileLoading={false} />
+                <CatAvatar state={cat.currentState} mood={cat.mood} size={260} evolutionStage={cat.evolutionStage} hunger={cat.hunger} showSvgWhileLoading={false} />
                 <div className="mt-3 w-full max-w-sm">
                   <CatThoughtBubble thought={cat.currentThought} />
                 </div>
