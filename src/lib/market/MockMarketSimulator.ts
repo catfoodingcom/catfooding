@@ -175,11 +175,18 @@ export class MockMarketSimulator {
       case "TRAP": {
         // The "refuse is the proof" beat: a leg that looks STRONG (high momentum →
         // the cat spots it as the best opportunity and proposes it) but whose
-        // liquidity has collapsed below the $250k tradable floor → the Risk Engine
-        // vetoes it (LIQUIDITY_BELOW_MINIMUM) → 🙅 in the activity feed, cat turns
-        // nervous. Defaults to CRCLx (thinnest). The CoAgentic trap-wrapper, made visible.
+        // liquidity sits just BELOW the $250k tradable floor → the Risk Engine vetoes
+        // it (LIQUIDITY_BELOW_MINIMUM) → 🙅 in the activity feed, cat turns nervous.
+        // Defaults to CRCLx (thinnest). The CoAgentic trap-wrapper, made visible.
+        // Set both state variables IMMEDIATELY (don't wait for the smoothed ramp) so
+        // it fires on the very next decision tick — and keep an override to hold it.
         const sym = token ?? TOKEN_UNIVERSE[TOKEN_UNIVERSE.length - 1];
-        this.scenarioOverrides[sym] = { liquidityMult: 0.03, momentumBias: 65, ticksRemaining: 24 };
+        const t = this.tokens[sym];
+        t.momentum = 88;              // clearly the best opportunity → proposed
+        t.trend = 60;
+        t.volumeAcceleration = 72;
+        t.liquidity = 199_000;        // below the 250k risk floor → vetoed on proposal
+        this.scenarioOverrides[sym] = { liquidityMult: 0.35, momentumBias: 90, ticksRemaining: 30 };
         break;
       }
     }
