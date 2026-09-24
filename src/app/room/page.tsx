@@ -158,7 +158,7 @@ export default function CatRoomPage() {
                 </Button>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {(["BULL", "BEAR", "VOLATILITY_SPIKE", "LIQUIDITY_COLLAPSE", "WINNING_SETUP", "LOSING_SETUP"] as const).map((s) => (
+                {(["BULL", "BEAR", "VOLATILITY_SPIKE", "LIQUIDITY_COLLAPSE", "WINNING_SETUP", "LOSING_SETUP", "TRAP"] as const).map((s) => (
                   <Button
                     key={s}
                     size="sm"

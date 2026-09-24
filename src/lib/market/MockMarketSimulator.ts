@@ -8,7 +8,7 @@ interface TokenLiveState extends TokenMetrics {
   regimeBiasApplied: number;
 }
 
-export type MarketScenario = "BULL" | "BEAR" | "VOLATILITY_SPIKE" | "LIQUIDITY_COLLAPSE" | "WINNING_SETUP" | "LOSING_SETUP";
+export type MarketScenario = "BULL" | "BEAR" | "VOLATILITY_SPIKE" | "LIQUIDITY_COLLAPSE" | "WINNING_SETUP" | "LOSING_SETUP" | "TRAP";
 
 /**
  * A self-contained, dependency-free market simulator. Produces plausible,
@@ -170,6 +170,16 @@ export class MockMarketSimulator {
       case "LOSING_SETUP": {
         const sym = token ?? TOKEN_UNIVERSE[4];
         this.scenarioOverrides[sym] = { liquidityMult: 0.5, momentumBias: -45, ticksRemaining: 20 };
+        break;
+      }
+      case "TRAP": {
+        // The "refuse is the proof" beat: a leg that looks STRONG (high momentum →
+        // the cat spots it as the best opportunity and proposes it) but whose
+        // liquidity has collapsed below the $250k tradable floor → the Risk Engine
+        // vetoes it (LIQUIDITY_BELOW_MINIMUM) → 🙅 in the activity feed, cat turns
+        // nervous. Defaults to CRCLx (thinnest). The CoAgentic trap-wrapper, made visible.
+        const sym = token ?? TOKEN_UNIVERSE[TOKEN_UNIVERSE.length - 1];
+        this.scenarioOverrides[sym] = { liquidityMult: 0.03, momentumBias: 65, ticksRemaining: 24 };
         break;
       }
     }
