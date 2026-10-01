@@ -39,6 +39,12 @@ async function feed(name: string, failures: string[]): Promise<Raw | null> {
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
 
+const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+
+function hypothesis(h: Raw) {
+  return { posture: str(h.posture), confidence: str(h.confidence), expects: str(h.expects), falsifier: str(h.falsifier), watching: strings(h.watching) };
+}
+
 function calendarEvent(e: Raw): LiveCalendarEvent {
   return {
     date: String(e.date),
@@ -207,7 +213,18 @@ export async function GET() {
     gate: {
       decision: str(tei?.verdict?.decision),
       rationale: Array.isArray(tei?.verdict?.rationale) ? tei.verdict.rationale.map(String).slice(0, 4) : [],
-      council: tei?.deliberation ? { stance: str(tei.deliberation.stance), confidence: str(tei.deliberation.confidence) } : null,
+      council: tei?.deliberation
+        ? {
+            stance: str(tei.deliberation.stance),
+            confidence: str(tei.deliberation.confidence),
+            asof: str(tei.deliberation.asof),
+            bull: str(tei.deliberation.bull),
+            bear: str(tei.deliberation.bear),
+            risk: str(tei.deliberation.risk),
+            synthesis: str(tei.deliberation.synthesis),
+            keyRisks: strings(tei.deliberation.key_risks),
+          }
+        : null,
     },
     calendar: {
       // No calendar reading means we can't show the board is clear: hold.
@@ -219,7 +236,28 @@ export async function GET() {
       rule: str(calendar?.rule?.note),
     },
     sentinel: sentinel?.hypothesis
-      ? { posture: str(sentinel.hypothesis.posture), confidence: str(sentinel.hypothesis.confidence), expires: str(sentinel.hypothesis.expires) }
+      ? {
+          ...hypothesis(sentinel.hypothesis),
+          published: str(sentinel.hypothesis.published),
+          expires: str(sentinel.hypothesis.expires),
+          expired: str(sentinel.hypothesis.expires) != null && Date.parse(sentinel.hypothesis.expires) < Date.now(),
+          hash: str(sentinel.hypothesisHash),
+          candidate: sentinel.candidate
+            ? {
+                ...hypothesis(sentinel.candidate),
+                asof: str(sentinel.candidate.asof),
+                hash: str(sentinel.candidate.hash),
+                falsifierTripped: typeof sentinel.candidate.publishedFalsifier?.tripped === "boolean" ? sentinel.candidate.publishedFalsifier.tripped : null,
+                assessment: str(sentinel.candidate.publishedFalsifier?.assessment),
+              }
+            : null,
+          record: (Array.isArray(sentinel.record) ? (sentinel.record as Raw[]) : []).map((r) => ({
+            posture: str(r.posture),
+            published: str(r.published),
+            expires: str(r.expires),
+            outcome: str(r.outcome),
+          })),
+        }
       : null,
     tokens,
     satellite,

@@ -30,10 +30,43 @@ export interface LiveToken {
   planUsd: number | null;
 }
 
+/** The Council's advisory deliberation on the staged plan. It argues; the
+ * deterministic gate decides. */
+export interface LiveCouncil {
+  stance: string | null;
+  confidence: string | null;
+  asof: string | null;
+  bull: string | null;
+  bear: string | null;
+  risk: string | null;
+  synthesis: string | null;
+  keyRisks: string[];
+}
+
 export interface LiveGate {
   decision: string | null;
   rationale: string[];
-  council: { stance: string | null; confidence: string | null } | null;
+  council: LiveCouncil | null;
+}
+
+export interface LiveHypothesis {
+  posture: string | null;
+  confidence: string | null;
+  expects: string | null;
+  falsifier: string | null;
+  watching: string[];
+}
+
+/** Sentinel's macro view: the published hypothesis, the Council's draft
+ * successor (no authority until a human promotes it), and resolved views. */
+export interface LiveSentinel extends LiveHypothesis {
+  published: string | null;
+  expires: string | null;
+  /** True once the evaluation window has closed and a successor is due. */
+  expired: boolean;
+  hash: string | null;
+  candidate: (LiveHypothesis & { asof: string | null; hash: string | null; falsifierTripped: boolean | null; assessment: string | null }) | null;
+  record: { posture: string | null; published: string | null; expires: string | null; outcome: string | null }[];
 }
 
 export interface LiveSession {
@@ -129,7 +162,7 @@ export interface EngineState {
     upcoming: LiveCalendarEvent[];
     rule: string | null;
   };
-  sentinel: { posture: string | null; confidence: string | null; expires: string | null } | null;
+  sentinel: LiveSentinel | null;
   tokens: LiveToken[];
   /** ETH and OKB: no real share behind them, so no peg or fair-price reading. */
   satellite: LiveToken[];

@@ -2,6 +2,7 @@
 
 import { referenceLabel, type EngineState, type LiveToken, type LiveVerdict, type TokenVerdict } from "@/lib/live/engine";
 import { MacroCalendar } from "./MacroCalendar";
+import { GateReasoning, MacroReasoning } from "./Reasoning";
 
 const VERDICT_STYLE: Record<LiveVerdict, { icon: string; chip: string }> = {
   REFUSE: { icon: "🙅", chip: "border-[#ff5d5d]/60 bg-[#ff5d5d]/10 text-[#ff9d9d]" },
@@ -40,7 +41,7 @@ export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePa
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono text-[10px]">
-        <Fact label="Gate" value={gate.decision ?? "unknown"} sub={gate.council?.stance ? `Council: ${gate.council.stance}` : ""} />
+        <GateReasoning gate={gate} tile={<Fact label="Gate" value={gate.decision ?? "unknown"} sub={gate.council?.stance ? `Council: ${gate.council.stance}` : ""} more />} />
         <Fact label="Tokens" value="trading 24/7" sub="X Layer, always open" />
         <Fact
           label="Fair-price check"
@@ -48,7 +49,10 @@ export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePa
           sub={session.anchored ? "real shares trading" : session.hoursToNextOpen != null ? `real shares live in ${session.hoursToNextOpen.toFixed(1)}h` : `real shares ${referenceLabel(session.state)}`}
         />
         <Fact label="Calendar" value={calendar.holdingNow ? "hold" : "clear"} sub={calendar.holdingFor.map((h) => h.event).join(", ")} />
-        <Fact label="Macro view" value={sentinel?.posture ?? "unknown"} sub={sentinel?.confidence ? `${sentinel.confidence} confidence` : ""} />
+        <MacroReasoning
+          sentinel={sentinel}
+          tile={<Fact label="Macro view" value={sentinel?.posture ?? "unknown"} sub={sentinel?.confidence ? `${sentinel.confidence} confidence` : ""} more={!!sentinel} />}
+        />
       </div>
 
       {gate.rationale[0] && <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">Gate: {gate.rationale[0]}</p>}
@@ -198,10 +202,13 @@ function TokenRow({ token: t, verdict: v, showReason }: { token: LiveToken; verd
   );
 }
 
-function Fact({ label, value, sub }: { label: string; value: string; sub: string }) {
+function Fact({ label, value, sub, more = false }: { label: string; value: string; sub: string; more?: boolean }) {
   return (
-    <div className="rounded-lg border border-border bg-ink p-2">
-      <div className="uppercase tracking-wider text-muted-foreground text-[9px]">{label}</div>
+    <div className={`rounded-lg border bg-ink p-2 h-full ${more ? "border-acid/40" : "border-border"}`}>
+      <div className="flex justify-between uppercase tracking-wider text-muted-foreground text-[9px]">
+        <span>{label}</span>
+        {more && <span className="text-acid">why ▸</span>}
+      </div>
       <div className="text-cream text-xs uppercase">{value}</div>
       {sub && <div className="text-muted-foreground text-[9px] truncate">{sub}</div>}
     </div>
