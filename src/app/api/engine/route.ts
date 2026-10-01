@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { TOKEN_UNIVERSE } from "@/lib/types";
-import { STALE_AFTER_MIN, type EngineState, type LiveBacktest, type LiveBook, type LiveCalendarEvent, type LiveToken } from "@/lib/live/engine";
+import {
+  RECORD_XP,
+  STALE_AFTER_MIN,
+  type EngineState,
+  type LiveBacktest,
+  type LiveBook,
+  type LiveCalendarEvent,
+  type LiveRecord,
+  type LiveToken,
+} from "@/lib/live/engine";
 
 // The CoAgentic public feeds send no CORS header, so the browser can't read
 // them from this domain. This route reads them server-side and returns only
@@ -55,6 +64,8 @@ function buildBook(book: Raw | null, tei: Raw | null, swaps: Raw[]): LiveBook | 
   const b: Raw | undefined = book?.books?.[0];
   if (!b || num(b.equityUsd) == null) return null;
   const targets = new Map<string, number>((tei?.constituents ?? []).map((c: Raw) => [String(c.symbol), Number(c.weightPct)]));
+  const sleeves = new Map<string, string>((tei?.constituents ?? []).map((c: Raw) => [String(c.symbol), String(c.sleeve)]));
+  const universe = new Set<string>(TOKEN_UNIVERSE);
   return {
     observedAt: str(book?.observedAt),
     equityUsd: b.equityUsd,
@@ -65,12 +76,16 @@ function buildBook(book: Raw | null, tei: Raw | null, swaps: Raw[]): LiveBook | 
       .filter((h: Raw) => !h.dust && num(h.usd) != null)
       .map((h: Raw) => {
         const symbol = String(h.symbol);
+        const kind = str(h.kind) ?? "position";
+        const declared = sleeves.get(TARGET_ALIAS[symbol] ?? symbol);
+        const sleeve = kind === "cash" ? "reserve" : declared === "equity" || universe.has(symbol) ? "equity" : "crypto";
         return {
           symbol,
           usd: h.usd,
           balance: num(h.balance),
           price: num(h.price),
-          kind: str(h.kind) ?? "position",
+          kind,
+          sleeve,
           pct: Math.round((h.usd / b.equityUsd) * 1000) / 10,
           targetPct: targets.get(TARGET_ALIAS[symbol] ?? symbol) ?? null,
         };
@@ -94,13 +109,36 @@ function buildBacktest(tei: Raw | null): LiveBacktest | null {
   };
 }
 
+// The track record is recounted from the public feeds on every read, starting
+// at the Steward book's first on-chain fill. Nothing is stored or self-reported.
+function buildRecord(trades: Raw | null, calendar: Raw | null, sentinel: Raw | null): LiveRecord | null {
+  if (!trades) return null;
+  const universe = new Set<string>(TOKEN_UNIVERSE);
+  const all: Raw[] = Array.isArray(trades.trades) ? trades.trades : [];
+  const stewardFills = all.filter((t) => universe.has(String(t.symbol)) && str(t.txHash) && str(t.ts));
+  const since = stewardFills.map((t) => String(t.ts)).sort()[0] ?? null;
+  // From the start of that day: the first allocation's ETH and OKB legs filled before its first stock token.
+  const fills = since ? all.filter((t) => str(t.txHash) && String(t.ts).slice(0, 10) >= since.slice(0, 10)).length : 0;
+  const holds = since
+    ? (calendar?.past ?? []).filter((e: Raw) => e.kind === "scheduled" && e.scope === "broad" && String(e.date) >= since.slice(0, 10)).length
+    : 0;
+  const hypotheses = (sentinel?.record ?? []).filter((r: Raw) => str(r.outcome)).length;
+  const items = [
+    { label: "On-chain fills, each verified", count: fills, xpEach: RECORD_XP.fill },
+    { label: "Scheduled events waited through", count: holds, xpEach: RECORD_XP.hold },
+    { label: "Macro views published and resolved", count: hypotheses, xpEach: RECORD_XP.hypothesis },
+  ];
+  return { since, items, xp: items.reduce((sum, i) => sum + i.count * i.xpEach, 0) };
+}
+
 export async function GET() {
   const failures: string[] = [];
-  const [tei, calendar, sentinel, book] = await Promise.all([
+  const [tei, calendar, sentinel, book, trades] = await Promise.all([
     feed("tei", failures),
     feed("calendar", failures),
     feed("sentinel", failures),
     feed("book", failures),
+    feed("trades", failures),
   ]);
 
   const asof = str(tei?.asof);
@@ -129,6 +167,30 @@ export async function GET() {
       planUsd,
     };
   });
+
+  // The index names ETH; the plan and the book call it xETH.
+  const satellite: LiveToken[] = (Array.isArray(tei?.constituents) ? (tei.constituents as Raw[]) : [])
+    .filter((c) => c.sleeve === "crypto")
+    .map((c) => {
+      const symbol = String(c.symbol);
+      const oracle: Raw = tei?.oracle?.[symbol] ?? {};
+      const phase: Raw = tei?.nav?.phases?.[symbol] ?? {};
+      const held: Raw | undefined = (book?.books?.[0]?.holdings ?? []).find((h: Raw) => (TARGET_ALIAS[String(h.symbol)] ?? String(h.symbol)) === symbol);
+      const swap = swaps.find((s) => (TARGET_ALIAS[String(s.symbol)] ?? String(s.symbol)) === symbol);
+      return {
+        symbol,
+        tradable: typeof oracle.tradable === "boolean" ? oracle.tradable : null,
+        rating: str(oracle.rating),
+        score: num(oracle.score),
+        liquidityUsd: null,
+        premiumPct: null,
+        realPrice: null,
+        wrapperPrice: num(held?.price),
+        phase: str(phase.phase),
+        bearing: str(phase.bearing),
+        planUsd: swap && num(swap.usd) != null ? (swap.side === "SELL" ? -swap.usd : swap.usd) : null,
+      };
+    });
 
   const state: EngineState = {
     ok: !!tei,
@@ -160,8 +222,10 @@ export async function GET() {
       ? { posture: str(sentinel.hypothesis.posture), confidence: str(sentinel.hypothesis.confidence), expires: str(sentinel.hypothesis.expires) }
       : null,
     tokens,
+    satellite,
     book: buildBook(book, tei, swaps),
     backtest: buildBacktest(tei),
+    record: buildRecord(trades, calendar, sentinel),
     failures,
   };
 

@@ -4,11 +4,11 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 import type { LiveBacktest, LiveBook } from "@/lib/live/engine";
 
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const KIND_LABEL: Record<string, string> = { cash: "reserve", gas: "also pays gas" };
 
 /** The four headline numbers of the real book. Used in the room sidebar and on the Book page. */
 export function BookSummary({ book }: { book: LiveBook }) {
-  const positions = book.holdings.filter((h) => h.kind !== "cash").length;
+  const stocks = book.holdings.filter((h) => h.sleeve === "equity").length;
+  const crypto = book.holdings.filter((h) => h.sleeve === "crypto").length;
   return (
     <div className="grid grid-cols-2 gap-3 font-mono">
       <div>
@@ -27,38 +27,68 @@ export function BookSummary({ book }: { book: LiveBook }) {
       </div>
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Holdings</p>
-        <p className="text-sm text-cream">{positions}</p>
+        <p className="text-sm text-cream">
+          {stocks + crypto} <span className="text-[10px] text-muted-foreground">({stocks} stocks + {crypto} crypto)</span>
+        </p>
       </div>
     </div>
   );
 }
 
-/** Each holding against its Steward target weight. */
+const SLEEVES = [
+  { id: "equity", label: "Tokenized stocks", note: "the index core" },
+  { id: "crypto", label: "Crypto satellite", note: "ETH and OKB; OKB also pays gas" },
+  { id: "reserve", label: "Reserve", note: "undeployed cash, not a holding" },
+] as const;
+
+/** The book by sleeve: stocks, the crypto satellite, then the reserve. Each
+ * holding is shown against its Steward target weight. */
 export function BookHoldings({ book }: { book: LiveBook }) {
   const scale = Math.max(...book.holdings.map((h) => Math.max(h.pct, h.targetPct ?? 0)), 1);
   return (
-    <div className="space-y-2">
-      {book.holdings.map((h) => (
-        <div key={h.symbol} className="font-mono text-[11px]">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-cream">
-              <span className="font-display font-bold">{h.symbol}</span>
-              {KIND_LABEL[h.kind] && <span className="ml-1.5 text-[9px] text-muted-foreground uppercase">{KIND_LABEL[h.kind]}</span>}
-            </span>
-            <span className="text-muted-foreground">
-              <span className="text-cream">{usd(h.usd)}</span> · {h.pct.toFixed(1)}%
-              {h.targetPct != null && ` of ${h.targetPct}% target`}
-            </span>
+    <div className="space-y-4">
+      {SLEEVES.map((sleeve) => {
+        const rows = book.holdings.filter((h) => h.sleeve === sleeve.id);
+        if (rows.length === 0) return null;
+        const usdTotal = rows.reduce((sum, h) => sum + h.usd, 0);
+        const pctTotal = rows.reduce((sum, h) => sum + h.pct, 0);
+        const targetTotal = rows.reduce((sum, h) => sum + (h.targetPct ?? 0), 0);
+        return (
+          <div key={sleeve.id} className="space-y-2">
+            <div className="flex items-baseline justify-between gap-2 border-b border-border pb-1 font-mono text-[10px] uppercase tracking-wider">
+              <span className="text-acid">
+                {sleeve.label}
+                {sleeve.id !== "reserve" && ` · ${rows.length}`} <span className="text-muted-foreground normal-case tracking-normal">{sleeve.note}</span>
+              </span>
+              <span className="text-muted-foreground normal-case tracking-normal shrink-0">
+                <span className="text-cream">{usd(usdTotal)}</span> · {pctTotal.toFixed(1)}%
+                {targetTotal > 0 && ` of ${targetTotal.toFixed(1)}% target`}
+              </span>
+            </div>
+            {rows.map((h) => (
+              <div key={h.symbol} className="font-mono text-[11px]">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-display font-bold text-cream">{h.symbol}</span>
+                  <span className="text-muted-foreground">
+                    <span className="text-cream">{usd(h.usd)}</span> · {h.pct.toFixed(1)}%
+                    {h.targetPct != null && ` of ${h.targetPct}% target`}
+                  </span>
+                </div>
+                <div className="relative mt-1 h-1.5 rounded-full bg-ink">
+                  <div
+                    className={`absolute inset-y-0 left-0 rounded-full ${sleeve.id === "reserve" ? "bg-[#ffd23f]" : "bg-acid"}`}
+                    style={{ width: `${(h.pct / scale) * 100}%` }}
+                  />
+                  {h.targetPct != null && (
+                    <div className="absolute -inset-y-0.5 w-0.5 bg-cream" style={{ left: `${(h.targetPct / scale) * 100}%` }} title={`target ${h.targetPct}%`} />
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="relative mt-1 h-1.5 rounded-full bg-ink">
-            <div className="absolute inset-y-0 left-0 rounded-full bg-acid" style={{ width: `${(h.pct / scale) * 100}%` }} />
-            {h.targetPct != null && (
-              <div className="absolute -inset-y-0.5 w-0.5 bg-cream" style={{ left: `${(h.targetPct / scale) * 100}%` }} title={`target ${h.targetPct}%`} />
-            )}
-          </div>
-        </div>
-      ))}
-      <p className="font-mono text-[9px] text-muted-foreground pt-1">Green bar = share of the book now. White mark = Steward target.</p>
+        );
+      })}
+      <p className="font-mono text-[9px] text-muted-foreground">Bar = share of the book now. White mark = Steward target.</p>
     </div>
   );
 }

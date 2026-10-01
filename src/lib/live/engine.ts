@@ -1,4 +1,4 @@
-import type { CatBehaviorState, TokenSymbol } from "@/lib/types";
+import type { CatBehaviorState } from "@/lib/types";
 
 /**
  * Live mode: what the CoAgentic engine currently says about each token, and
@@ -15,7 +15,8 @@ export const STALE_AFTER_MIN = 120;
 const STRONG_PHASES = ["Breaking", "Running", "Expansion"];
 
 export interface LiveToken {
-  symbol: TokenSymbol;
+  /** A stock token from TOKEN_UNIVERSE, or a crypto-satellite asset (ETH, OKB). */
+  symbol: string;
   tradable: boolean | null;
   rating: string | null;
   score: number | null;
@@ -64,6 +65,8 @@ export interface LiveHolding {
   price: number | null;
   /** position | cash | gas */
   kind: string;
+  /** equity = tokenized stocks, crypto = the ETH/OKB satellite, reserve = undeployed cash. */
+  sleeve: "equity" | "crypto" | "reserve";
   /** Share of the book now, and the Steward target for it (null = no target). */
   pct: number;
   targetPct: number | null;
@@ -92,6 +95,24 @@ export interface LiveBacktest {
   returns: { index: number | null; equalWeight: number | null; ethHold: number | null };
 }
 
+/** One kind of real, recorded behaviour and the XP it earns. */
+export interface RecordItem {
+  label: string;
+  count: number;
+  xpEach: number;
+}
+
+/** The engine's track record, counted from public feeds every time (nothing
+ * is stored here): the level can only rise as real, verifiable events accrue. */
+export interface LiveRecord {
+  /** When the Steward book went live (its first on-chain fill). */
+  since: string | null;
+  items: RecordItem[];
+  xp: number;
+}
+
+export const RECORD_XP = { fill: 15, hold: 5, hypothesis: 20 } as const;
+
 export interface EngineState {
   ok: boolean;
   fetchedAt: string;
@@ -110,8 +131,11 @@ export interface EngineState {
   };
   sentinel: { posture: string | null; confidence: string | null; expires: string | null } | null;
   tokens: LiveToken[];
+  /** ETH and OKB: no real share behind them, so no peg or fair-price reading. */
+  satellite: LiveToken[];
   book: LiveBook | null;
   backtest: LiveBacktest | null;
+  record: LiveRecord | null;
   /** Feeds that could not be read this time. */
   failures: string[];
 }
@@ -120,6 +144,10 @@ export interface TokenVerdict {
   verdict: LiveVerdict;
   /** One line, plain words — why the cat decided this. */
   reason: string;
+  /** The same reason without this token's own numbers, for when several tokens share it. */
+  shared?: string;
+  /** A problem with this token specifically: always shown on its own, never folded into a group. */
+  solo?: boolean;
   /** Every check, in order, pass or fail. */
   checks: { label: string; ok: boolean | null; detail: string }[];
 }
@@ -153,10 +181,10 @@ export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict 
   ];
 
   if (engine.stale) return { verdict: "REFUSE", reason: "The engine's reading is stale. Not eating old food.", checks };
-  if (token.tradable === false) return { verdict: "REFUSE", reason: `Oracle rates it ${token.rating ?? "untradable"}. Too thin to eat.`, checks };
+  if (token.tradable === false) return { verdict: "REFUSE", reason: `Oracle rates it ${token.rating ?? "untradable"}. Too thin to eat.`, solo: true, checks };
   if (premiumOk === false)
-    return { verdict: "REFUSE", reason: `Priced ${pct(token.premiumPct!)} away from the real share. Not fair food.`, checks };
-  if (token.tradable == null || premiumOk == null) return { verdict: "REFUSE", reason: "A check is missing a reading. No proof, no bite.", checks };
+    return { verdict: "REFUSE", reason: `Priced ${pct(token.premiumPct!)} away from the real share. Not fair food.`, solo: true, checks };
+  if (token.tradable == null || premiumOk == null) return { verdict: "REFUSE", reason: "A check is missing a reading. No proof, no bite.", solo: true, checks };
   if (!session.anchored) {
     const next = session.hoursToNextOpen != null ? ` Next live reference in ${session.hoursToNextOpen.toFixed(1)}h.` : "";
     return {
@@ -167,8 +195,8 @@ export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict 
   }
   if (calendar.holdingNow) return { verdict: "WAIT", reason: `Calendar hold: ${holdNames}. Waiting for the print to settle.`, checks };
   if (!gateApproves) return { verdict: "WAIT", reason: `The gate says ${gate.decision ?? "nothing yet"}. Waiting.`, checks };
-  if (strong) return { verdict: "HUNT", reason: `Real, fairly priced (${pct(token.premiumPct!)}), gate approves, ${token.phase}. Paw up.`, checks };
-  return { verdict: "WATCH", reason: `Allowed, but ${token.phase ?? "the trend"} isn't strong enough yet. Watching.`, checks };
+  if (strong) return { verdict: "HUNT", reason: `Real, fairly priced (${pct(token.premiumPct!)}), gate approves, ${token.phase}. Paw up.`, shared: "Real, fairly priced, gate approves, strong trend. Paw up.", checks };
+  return { verdict: "WATCH", reason: `Allowed, but ${token.phase ?? "the trend"} isn't strong enough yet. Watching.`, shared: "Allowed, but the trend isn't strong enough yet. Watching.", checks };
 }
 
 /** How the real share (the reference the token is checked against) is trading. */
@@ -176,6 +204,31 @@ export function referenceLabel(state: string | null): string {
   if (state === "us_regular") return "trading now";
   if (state === "us_extended") return "in thin extended hours";
   return "not trading";
+}
+
+/** The crypto satellite is judged by a shorter rule: there is no real share to
+ * compare against, so the fair-price checks don't apply, and the Oracle gives
+ * no depth score. It trades 24/7 with nothing to wait for but the calendar and gate. */
+export function satelliteVerdictFor(token: LiveToken, engine: EngineState): TokenVerdict {
+  const { gate, calendar } = engine;
+  const gateApproves = gate.decision === "approve";
+  const strong = token.bearing === "bull" && token.phase != null && STRONG_PHASES.includes(token.phase);
+  const holdNames = calendar.holdingFor.map((h) => h.event).join(", ");
+  const checks: TokenVerdict["checks"] = [
+    { label: "Engine data", ok: !engine.stale, detail: engine.ageMinutes == null ? "no reading" : `${engine.ageMinutes} min old` },
+    { label: "Token is tradable", ok: token.tradable, detail: `${token.rating ?? "unknown"} · no Oracle depth score for this asset` },
+    { label: "Fair price provable", ok: null, detail: "not applicable: no real share behind it" },
+    { label: "Price is fair", ok: null, detail: "not applicable: it is the asset, not a wrapper" },
+    { label: "Calendar is clear", ok: !calendar.holdingNow, detail: calendar.holdingNow ? `holding for ${holdNames}` : "no hold" },
+    { label: "Gate approves", ok: gateApproves, detail: gate.decision ?? "unknown" },
+    { label: "Trend is strong", ok: strong, detail: token.phase ? `${token.phase} · ${token.bearing ?? "?"}` : "no phase" },
+  ];
+  if (engine.stale) return { verdict: "REFUSE", reason: "The engine's reading is stale. Not eating old food.", checks };
+  if (token.tradable !== true) return { verdict: "REFUSE", reason: `Rated ${token.rating ?? "unknown"}. No proof it can be traded cleanly.`, solo: true, checks };
+  if (calendar.holdingNow) return { verdict: "WAIT", reason: `Calendar hold: ${holdNames}. Waiting for the print to settle.`, checks };
+  if (!gateApproves) return { verdict: "WAIT", reason: `The gate says ${gate.decision ?? "nothing yet"}. Waiting.`, checks };
+  if (strong) return { verdict: "HUNT", reason: `Tradable, gate approves, ${token.phase}. Paw up.`, shared: "Tradable, gate approves, strong trend. Paw up.", checks };
+  return { verdict: "WATCH", reason: `Allowed, but ${token.phase ?? "the trend"} isn't strong enough yet. Watching.`, shared: "Allowed, but the trend isn't strong enough yet. Watching.", checks };
 }
 
 export interface CatRead {
@@ -200,3 +253,83 @@ export function catRead(engine: EngineState, verdicts: Record<string, TokenVerdi
   if (!all.length) return { state: "curious", headline: "WATCH", thought: "Can't reach the engine. Not guessing." };
   return { state: "idle", headline: "WATCH", thought: "Everything's allowed, nothing's strong. Watching." };
 }
+
+export interface LiveVital {
+  key: string;
+  icon: string;
+  label: string;
+  color: string;
+  /** 0-100 */
+  value: number;
+  /** What the bar is measuring right now, in plain words. */
+  caption: string;
+}
+
+const clamp100 = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+const CONFIDENCE_SCORE: Record<string, number> = { high: 90, medium: 60, low: 30 };
+const POSTURE_CAUTION: Record<string, number> = { defensive: 85, cautious: 65, neutral: 45, constructive: 25 };
+
+/** The cat's vitals in Live mode: each bar is a real reading from the engine. */
+export function liveVitals(engine: EngineState): LiveVital[] {
+  const { book, gate, sentinel, calendar } = engine;
+  const targeted = book?.holdings.filter((h) => h.targetPct != null) ?? [];
+  const gap = targeted.reduce((sum, h) => sum + Math.abs(h.pct - h.targetPct!), 0);
+  const planUsd = book?.plan.filter((p) => p.side === "BUY").reduce((sum, p) => sum + p.usd, 0) ?? 0;
+  const confidence = gate.council?.confidence?.toLowerCase() ?? "";
+  const posture = sentinel?.posture?.toLowerCase() ?? "";
+  const holds = calendar.holdingFor.map((h) => h.event).join(", ");
+
+  return [
+    {
+      key: "health",
+      icon: "❤️",
+      label: "Health",
+      color: "#ff5d5d",
+      value: book ? clamp100(100 - gap) : 0,
+      caption: book ? `Book is ${gap.toFixed(1)} points off its target weights` : "No book reading",
+    },
+    {
+      key: "energy",
+      icon: "⚡",
+      label: "Energy",
+      color: "#ffd23f",
+      value: book ? clamp100(book.reservePct) : 0,
+      caption: book ? `${book.reservePct.toFixed(1)}% of the book is in reserve, ready to deploy` : "No book reading",
+    },
+    {
+      key: "hunger",
+      icon: "🍣",
+      label: "Hunger",
+      color: "#ff9f4f",
+      value: book && book.reserveUsd > 0 ? clamp100((planUsd / book.reserveUsd) * 100) : 0,
+      caption: planUsd > 0 ? `Wants to buy $${planUsd.toFixed(2)} of the $${book!.reserveUsd.toFixed(2)} reserve` : "Nothing staged to buy",
+    },
+    {
+      key: "focus",
+      icon: "🎯",
+      label: "Focus",
+      color: "#5fd0ff",
+      value: engine.ageMinutes == null ? 0 : clamp100(100 - (engine.ageMinutes / STALE_AFTER_MIN) * 100),
+      caption: engine.ageMinutes == null ? "No engine reading" : `Engine reading is ${engine.ageMinutes} min old`,
+    },
+    {
+      key: "confidence",
+      icon: "😼",
+      label: "Confidence",
+      color: "#baff29",
+      value: CONFIDENCE_SCORE[confidence] ?? 0,
+      caption: gate.council?.stance ? `Council is ${confidence || "unrated"} confidence in "${gate.council.stance}"` : "No Council reading",
+    },
+    {
+      key: "caution",
+      icon: "🛡",
+      label: "Caution",
+      color: "#ff4fa6",
+      value: clamp100((POSTURE_CAUTION[posture] ?? 50) + (calendar.holdingNow ? 20 : 0)),
+      caption: `Macro view: ${posture || "unknown"}${calendar.holdingNow ? ` · holding for ${holds}` : " · calendar clear"}`,
+    },
+  ];
+}
+
+const MOOD: Record<LiveVerdict, string> = { HUNT: "Alert", WAIT: "Patient", REFUSE: "Wary", WATCH: "Calm" };
+export const liveMood = (headline: LiveVerdict) => MOOD[headline];
