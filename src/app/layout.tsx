@@ -19,7 +19,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "CATFOOD — Raise a cat. Let it hunt.",
   description:
-    "An autonomous AI cat that watches the CoAgentic X Layer tokenized-equity index, paper-trades the xStocks, remembers what happens, and evolves. Paper trading only.",
+    "A cat that reads the CoAgentic engine for tokenized stocks on X Layer. Live mode shows the engine's real verdicts and book, read-only; Demo mode paper-trades a simulated market. The cat places no real trades.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

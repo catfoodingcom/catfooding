@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://catfooding.com/sitemap.xml
+Sitemap: https://app.catfooding.com/sitemap.xml
