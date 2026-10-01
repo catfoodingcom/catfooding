@@ -12,14 +12,65 @@ import { MemoryCard } from "@/components/memory/MemoryCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Trade } from "@/lib/types";
+import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
+import { useEngine } from "@/lib/hooks/useEngine";
+import { BacktestChart, BookHoldings, BookPlan, BookSummary } from "@/components/live/BookView";
 
 export default function PortfolioPage() {
   const router = useRouter();
   const { sim } = useRequireCat();
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const live = useCatFoodStore((s) => s.mode) === "LIVE";
+  const { engine, error } = useEngine(live);
 
   if (!sim) return null;
   const { portfolio, memories } = sim;
+
+  // Live mode: the real Steward book instead of the cat's paper portfolio.
+  if (live) {
+    const book = engine?.ok ? engine.book : null;
+    return (
+      <div className="min-h-screen bg-ink crt-scanlines px-4 py-6 sm:px-6">
+        <div className="max-w-4xl mx-auto space-y-4">
+          <Link href="/room" className="font-mono text-xs uppercase tracking-wider text-muted-foreground hover:text-cream">
+            ← Back to room
+          </Link>
+          {!book || !engine ? (
+            <div className="chunky-border bg-ink-raised rounded-2xl p-5 font-mono text-xs text-muted-foreground">
+              {error || engine ? "Can't read the book right now." : "Reading the book…"}
+            </div>
+          ) : (
+            <>
+              <div className="chunky-border-acid bg-ink-raised rounded-2xl p-5">
+                <h1 className="font-display text-2xl font-bold">Book</h1>
+                <p className="font-mono text-[10px] text-muted-foreground mb-4">
+                  What the Steward wallet actually holds on X Layer{book.observedAt ? `, read ${book.observedAt.slice(0, 16).replace("T", " ")} UTC` : ""}.
+                </p>
+                <BookSummary book={book} />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-[1fr_260px]">
+                <div className="chunky-border bg-ink-raised rounded-2xl p-4">
+                  <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Holdings vs target</h2>
+                  <BookHoldings book={book} />
+                </div>
+                <div className="chunky-border bg-ink-raised rounded-2xl p-4">
+                  <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Staged plan</h2>
+                  <BookPlan book={book} gate={engine.gate.decision} />
+                </div>
+              </div>
+              {engine.backtest && (
+                <div className="chunky-border bg-ink-raised rounded-2xl p-4">
+                  <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Index backtest</h2>
+                  <BacktestChart backtest={engine.backtest} />
+                </div>
+              )}
+              <p className="font-mono text-[9px] text-muted-foreground">Read-only view of public CoAgentic feeds. Not investment advice.</p>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-ink crt-scanlines px-4 py-6 sm:px-6">

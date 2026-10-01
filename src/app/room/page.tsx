@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 import { useRequireCat } from "@/lib/hooks/useRequireCat";
@@ -20,6 +20,10 @@ import { PortfolioSummary } from "@/components/trading/PortfolioSummary";
 import { ActivityFeed } from "@/components/activity/ActivityFeed";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { LivePanel } from "@/components/live/LivePanel";
+import { BookSummary } from "@/components/live/BookView";
+import { useEngine } from "@/lib/hooks/useEngine";
+import { catRead, verdictFor, type TokenVerdict } from "@/lib/live/engine";
 
 function RoomItem({ icon, label, value, hint }: { icon: string; label: string; value: string; hint: string }) {
   return (
@@ -44,14 +48,28 @@ export default function CatRoomPage() {
   const declineProposal = useCatFoodStore((s) => s.declineProposal);
   const feedCat = useCatFoodStore((s) => s.feedCat);
   const applyScenario = useCatFoodStore((s) => s.applyScenario);
+  const mode = useCatFoodStore((s) => s.mode);
+  const setMode = useCatFoodStore((s) => s.setMode);
+  const live = mode === "LIVE";
+  const { engine, error: engineError } = useEngine(live);
+
+  // Live mode: the engine's verdicts drive the cat instead of the simulator.
+  const verdicts = useMemo(() => {
+    const out: Record<string, TokenVerdict> = {};
+    if (engine?.ok) for (const t of engine.tokens) out[t.symbol] = verdictFor(t, engine);
+    return out;
+  }, [engine]);
+  const read = useMemo(() => (live && engine ? catRead(engine, verdicts) : null), [live, engine, verdicts]);
 
   useEffect(() => {
-    if (sim && !isRunning) start();
+    if (sim && !isRunning && !live) start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sim?.cat.id]);
 
   if (!sim || !market) return null;
   const { cat, portfolio, riskSettings } = sim;
+  // Live mode shows the real book; Demo shows the cat's paper portfolio.
+  const book = live && engine?.ok ? engine.book : null;
 
   const proposalMetrics = sim.pendingProposal?.token ? market.tokens[sim.pendingProposal.token] : null;
 
@@ -64,10 +82,10 @@ export default function CatRoomPage() {
             CAT<span className="text-acid">FOOD</span>
           </Link>
           <div className="flex items-center gap-2">
-            <MarketRegimeIndicator regime={market.regime} />
+            {!live && <MarketRegimeIndicator regime={market.regime} />}
             <Link href="/portfolio">
               <Button variant="outline" size="sm" className="font-mono text-xs uppercase border-border">
-                Portfolio
+                {live ? "Book" : "Portfolio"}
               </Button>
             </Link>
             <Link href="/settings">
@@ -98,34 +116,58 @@ export default function CatRoomPage() {
                   </div>
                 </div>
                 <div className="flex gap-1.5">
-                  <Button size="icon" variant="outline" className="border-border h-8 w-8" onClick={() => (isRunning ? pause() : start())}>
-                    {isRunning ? "⏸" : "▶"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="font-mono text-[10px] border-border"
-                    onClick={() => setSpeed(speed === "NORMAL" ? "FAST" : "NORMAL")}
-                  >
-                    {speed}
-                  </Button>
+                  <div className="flex rounded-md border border-border overflow-hidden">
+                    {(["LIVE", "DEMO"] as const).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setMode(m)}
+                        aria-pressed={mode === m}
+                        className={`px-2.5 h-8 font-mono text-[10px] uppercase tracking-wider ${mode === m ? "bg-acid text-ink" : "text-muted-foreground hover:text-cream"}`}
+                      >
+                        {m === "LIVE" ? "● Live" : "Demo"}
+                      </button>
+                    ))}
+                  </div>
+                  {!live && (
+                    <>
+                      <Button size="icon" variant="outline" className="border-border h-8 w-8" onClick={() => (isRunning ? pause() : start())}>
+                        {isRunning ? "⏸" : "▶"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="font-mono text-[10px] border-border"
+                        onClick={() => setSpeed(speed === "NORMAL" ? "FAST" : "NORMAL")}
+                      >
+                        {speed}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 
               <div className="flex flex-col items-center py-4">
-                <CatAvatar state={cat.currentState} mood={cat.mood} size={260} evolutionStage={cat.evolutionStage} hunger={cat.hunger} showSvgWhileLoading={false} />
+                <CatAvatar state={read?.state ?? (live ? "curious" : cat.currentState)} mood={cat.mood} size={260} evolutionStage={cat.evolutionStage} hunger={cat.hunger} showSvgWhileLoading={false} />
                 <div className="mt-3 w-full max-w-sm">
-                  <CatThoughtBubble thought={cat.currentThought} />
+                  <CatThoughtBubble thought={live ? (read?.thought ?? (engineError ? "Can't reach the engine. Not guessing." : "Sniffing the engine…")) : cat.currentThought} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4">
-                <RoomItem icon="🥣" label="Bowl" value={`$${portfolio.cash.toFixed(0)}`} hint="available USDC" />
-                <RoomItem icon="💰" label="Treasure" value={`$${portfolio.realisedPnL.toFixed(0)}`} hint="realised P&L" />
-                <RoomItem icon="🧸" label="Toy box" value={`${portfolio.openPositions.length}`} hint="open positions" />
-                <RoomItem icon="🛏" label="Bed" value={`${((portfolio.cash / portfolio.portfolioValue) * 100).toFixed(0)}%`} hint="idle capital" />
-                <RoomItem icon="🩹" label="Medicine" value={`${cat.lives}/9`} hint="lives left" />
-              </div>
+              {live ? (
+                <div className="grid grid-cols-3 gap-2 mt-4">
+                  <RoomItem icon="🥣" label="Bowl" value={book ? `$${book.reserveUsd.toFixed(0)}` : "…"} hint="reserve in the book" />
+                  <RoomItem icon="🧸" label="Toy box" value={book ? `${book.holdings.filter((h) => h.kind !== "cash").length}` : "…"} hint="holdings" />
+                  <RoomItem icon="🛏" label="Bed" value={book ? `${book.reservePct.toFixed(0)}%` : "…"} hint="idle capital" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-4">
+                  <RoomItem icon="🥣" label="Bowl" value={`$${portfolio.cash.toFixed(0)}`} hint="available USDC" />
+                  <RoomItem icon="💰" label="Treasure" value={`$${portfolio.realisedPnL.toFixed(0)}`} hint="realised P&L" />
+                  <RoomItem icon="🧸" label="Toy box" value={`${portfolio.openPositions.length}`} hint="open positions" />
+                  <RoomItem icon="🛏" label="Bed" value={`${((portfolio.cash / portfolio.portfolioValue) * 100).toFixed(0)}%`} hint="idle capital" />
+                  <RoomItem icon="🩹" label="Medicine" value={`${cat.lives}/9`} hint="lives left" />
+                </div>
+              )}
 
               <div className="mt-4 space-y-2">
                 <XPBar xp={cat.xp} level={cat.level} />
@@ -133,7 +175,9 @@ export default function CatRoomPage() {
               </div>
             </div>
 
-            {sim.pendingProposal && proposalMetrics && (
+            {live && <LivePanel engine={engine?.ok ? engine : null} verdicts={verdicts} error={engineError} />}
+
+            {!live && sim.pendingProposal && proposalMetrics && (
               <PreyCard
                 decision={sim.pendingProposal}
                 metrics={proposalMetrics}
@@ -144,7 +188,7 @@ export default function CatRoomPage() {
               />
             )}
 
-            {!sim.pendingProposal && sim.lastRefusal && (
+            {!live && !sim.pendingProposal && sim.lastRefusal && (
               <RefusedCard decision={sim.lastRefusal} catName={cat.name} />
             )}
 
@@ -158,7 +202,7 @@ export default function CatRoomPage() {
               <EvolutionProgress current={cat.evolutionStage} />
             </div>
 
-            <div className="chunky-border bg-ink-raised rounded-2xl p-4">
+            <div className={`chunky-border bg-ink-raised rounded-2xl p-4 ${live ? "hidden" : ""}`}>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Dev / Demo Controls</h2>
                 <Button size="sm" variant="ghost" onClick={feedCat} className="font-mono text-[10px] text-pink hover:text-pink">
@@ -183,17 +227,29 @@ export default function CatRoomPage() {
 
           {/* sidebar */}
           <div className="space-y-4">
-            <div className="chunky-border bg-ink-raised rounded-2xl p-4">
-              <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Portfolio</h2>
-              <PortfolioSummary portfolio={portfolio} />
-            </div>
+            {live ? (
+              <div className="chunky-border bg-ink-raised rounded-2xl p-4">
+                <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Book · Steward, live</h2>
+                {book ? <BookSummary book={book} /> : <p className="font-mono text-xs text-muted-foreground">Reading the book…</p>}
+                <Link href="/portfolio" className="mt-3 inline-block font-mono text-[10px] uppercase tracking-wider text-acid hover:underline">
+                  Holdings and targets →
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="chunky-border bg-ink-raised rounded-2xl p-4">
+                  <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Portfolio</h2>
+                  <PortfolioSummary portfolio={portfolio} />
+                </div>
 
-            <div className="chunky-border bg-ink-raised rounded-2xl p-4">
-              <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Risk Engine</h2>
-              <RiskPanel settings={riskSettings} portfolio={portfolio} />
-            </div>
+                <div className="chunky-border bg-ink-raised rounded-2xl p-4">
+                  <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Risk Engine</h2>
+                  <RiskPanel settings={riskSettings} portfolio={portfolio} />
+                </div>
+              </>
+            )}
 
-            <div className="chunky-border bg-ink-raised rounded-2xl p-4 h-96 flex flex-col">
+            <div className={`chunky-border bg-ink-raised rounded-2xl p-4 h-96 flex flex-col ${live ? "hidden" : ""}`}>
               <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Activity</h2>
               <div className="flex-1 min-h-0">
                 <ActivityFeed events={sim.activity} />

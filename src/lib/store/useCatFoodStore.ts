@@ -9,6 +9,9 @@ import type { SimulationState } from "@/lib/simulation/types";
 import { satiateHunger } from "@/lib/engine/vitalsEngine";
 
 export type SimSpeed = "NORMAL" | "FAST";
+/** DEMO = the mock market simulator drives the cat. LIVE = the CoAgentic engine
+ * feeds do (see lib/live/engine.ts); the simulator is held, not slept. */
+export type RoomMode = "DEMO" | "LIVE";
 const TICK_INTERVAL_MS: Record<SimSpeed, number> = { NORMAL: 6000, FAST: 1500 };
 
 // The market provider is a stateful engine, not plain data — kept outside
@@ -21,6 +24,7 @@ interface CatFoodStore {
   market: MarketSnapshot | null;
   isRunning: boolean;
   speed: SimSpeed;
+  mode: RoomMode;
   /** False until zustand/persist has finished reading localStorage. Pages
    * that redirect-if-no-cat must wait for this — otherwise a hard reload
    * or direct URL visit bounces a real, saved cat back to /adopt because
@@ -35,6 +39,7 @@ interface CatFoodStore {
   start: () => void;
   pause: () => void;
   setSpeed: (speed: SimSpeed) => void;
+  setMode: (mode: RoomMode) => void;
   tick: () => void;
   syncToServer: () => Promise<void>;
 
@@ -57,6 +62,7 @@ export const useCatFoodStore = create<CatFoodStore>()(
   market: marketProvider.getSnapshot(),
   isRunning: false,
   speed: "NORMAL",
+  mode: "DEMO",
   hasHydrated: false,
   setHasHydrated: (value) => set({ hasHydrated: value }),
 
@@ -76,7 +82,8 @@ export const useCatFoodStore = create<CatFoodStore>()(
   },
 
   start: () => {
-    if (intervalHandle || !get().sim) return;
+    // LIVE mode holds the simulator: the engine drives the cat, not mock ticks
+    if (intervalHandle || !get().sim || get().mode === "LIVE") return;
     const sim = get().sim!;
     // wake the cat if it dozed off while paused
     set({ isRunning: true, sim: sim.cat.currentState === "sleeping" ? { ...sim, cat: { ...sim.cat, currentState: "idle" } } : sim });
@@ -97,6 +104,21 @@ export const useCatFoodStore = create<CatFoodStore>()(
     set({ speed });
     if (get().isRunning) {
       get().pause();
+      get().start();
+    }
+  },
+
+  setMode: (mode) => {
+    if (mode === get().mode) return;
+    if (mode === "LIVE") {
+      // hold the simulator without the pause() doze — the engine drives the cat now
+      if (intervalHandle) {
+        clearInterval(intervalHandle);
+        intervalHandle = null;
+      }
+      set({ mode, isRunning: false });
+    } else {
+      set({ mode });
       get().start();
     }
   },
@@ -264,7 +286,7 @@ export const useCatFoodStore = create<CatFoodStore>()(
     {
       name: "catfood-sim",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ sim: state.sim, speed: state.speed }),
+      partialize: (state) => ({ sim: state.sim, speed: state.speed, mode: state.mode }),
       onRehydrateStorage: () => (state, error) => {
         if (error) console.error("Failed to rehydrate CATFOOD state:", error);
         // lastRefusal is a transient demo beat — don't carry a stale REFUSED card
