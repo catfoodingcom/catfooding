@@ -4,8 +4,8 @@ import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 
 export const THEMES = [
+  { id: "blue", label: "Terminal blue", note: "the default", swatch: ["#0a0c14", "#4dc4ff", "#ff4fa6", "#a78bfa"] },
   { id: "green", label: "Acid green", note: "the original", swatch: ["#0d0e0c", "#baff29", "#ff4fa6", "#5fd0ff"] },
-  { id: "blue", label: "Terminal blue", note: "blue, purple, pink", swatch: ["#0a0c14", "#4dc4ff", "#ff4fa6", "#a78bfa"] },
 ] as const;
 
 const noop = () => () => {};
@@ -16,7 +16,7 @@ export function ThemeSelector() {
   const { theme, setTheme } = useTheme();
   // The saved theme is only known in the browser; render the choice after hydration.
   const mounted = useSyncExternalStore(noop, () => true, () => false);
-  const current = mounted ? (theme ?? "green") : null;
+  const current = mounted ? (theme ?? "blue") : null;
 
   return (
     <div className="grid gap-2 sm:grid-cols-2">

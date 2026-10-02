@@ -27,7 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} dark h-full`}>
       <body className="min-h-full bg-ink text-cream font-sans antialiased">
-        <ThemeProvider attribute="data-theme" themes={["green", "blue"]} defaultTheme="green" enableSystem={false} storageKey="catfood-theme">
+        <ThemeProvider attribute="data-theme" themes={["green", "blue"]} defaultTheme="blue" enableSystem={false} storageKey="catfood-theme">
           <TooltipProvider delay={150}>
             {children}
             <Toaster theme="dark" position="bottom-right" />
