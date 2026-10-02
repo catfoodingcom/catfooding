@@ -41,10 +41,10 @@ export default function LandingPage() {
 
       <header className="relative z-10 flex items-center justify-between px-6 py-5 max-w-6xl mx-auto">
         <span className="font-display font-bold text-lg tracking-tight">
-          CAT<span className="text-acid">FOOD</span>
+          CAT<span className="text-acid">FOODING</span>
         </span>
         <span className="font-mono text-[10px] uppercase tracking-widest text-pink border border-pink/50 rounded-full px-3 py-1">
-          Paper Trading Only
+          Beta · Live + Demo
         </span>
       </header>
 
@@ -61,9 +61,9 @@ export default function LandingPage() {
           </motion.h1>
 
           <p className="font-mono text-sm text-muted-foreground max-w-md leading-relaxed">
-            An autonomous AI cat that watches the CoAgentic X&nbsp;Layer tokenized-equity index, paper-trades the xStocks, remembers what happens, and evolves. Its
-            mood, health, and hunger <em className="text-cream not-italic">are</em> the trading agent&apos;s
-            interface.
+            A cat that reads the CoAgentic engine for tokenized stocks on X&nbsp;Layer. In <em className="text-cream not-italic">Live</em> it shows the
+            engine&apos;s real verdicts and book, read-only. In <em className="text-cream not-italic">Demo</em> it paper-trades a simulated market. Its mood,
+            health, and hunger <em className="text-cream not-italic">are</em> the trading agent&apos;s interface.
           </p>
 
           <div className="flex flex-wrap gap-3 pt-2">

@@ -1,6 +1,6 @@
 {
-  "name": "CATFOOD — Raise a cat. Let it hunt.",
-  "short_name": "CATFOOD",
+  "name": "CATFOODING — Raise a cat. Let it hunt.",
+  "short_name": "CATFOODING",
   "description": "A cat that reads the CoAgentic engine for tokenized stocks on X Layer and only raises its paw when the token is real, the price is fair and the rules allow it.",
   "icons": [
     {

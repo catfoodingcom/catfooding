@@ -88,7 +88,7 @@ export default function CatRoomPage() {
         {/* top nav */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/" className="font-display font-bold tracking-tight">
-            CAT<span className="text-acid">FOOD</span>
+            CAT<span className="text-acid">FOODING</span>
           </Link>
           <div className="flex items-center gap-2">
             {!live && <MarketRegimeIndicator regime={market.regime} />}

@@ -1,4 +1,4 @@
-# CATFOOD
+# CATFOODING
 
 **Raise a cat. Let it hunt.**
 
