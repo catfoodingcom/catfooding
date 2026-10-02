@@ -125,21 +125,21 @@ export function BacktestChart({ backtest }: { backtest: LiveBacktest }) {
       </p>
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={data} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-          <XAxis dataKey="day" tick={{ fontSize: 9, fill: "#9a9887" }} axisLine={{ stroke: "#34362653" }} tickLine={false} minTickGap={40} />
-          <YAxis tick={{ fontSize: 9, fill: "#9a9887" }} axisLine={false} tickLine={false} domain={["auto", "auto"]} width={56} />
+          <XAxis dataKey="day" tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={{ stroke: "var(--border)" }} tickLine={false} minTickGap={40} />
+          <YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} domain={["auto", "auto"]} width={56} />
           <Tooltip
-            contentStyle={{ background: "#16180f", border: "2px solid #f3efdf", borderRadius: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}
-            labelStyle={{ color: "#9a9887" }}
+            contentStyle={{ background: "var(--ink-raised)", border: "2px solid var(--cream)", borderRadius: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}
+            labelStyle={{ color: "var(--muted-foreground)" }}
             labelFormatter={(d) => `day ${d}`}
           />
-          <Line type="monotone" dataKey="index" name="Steward index" stroke="#baff29" strokeWidth={2} dot={false} isAnimationActive={false} />
-          <Line type="monotone" dataKey="equal" name="Equal weight" stroke="#5fd0ff" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="index" name="Steward index" stroke="var(--acid)" strokeWidth={2} dot={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="equal" name="Equal weight" stroke="var(--info)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
           <Line type="monotone" dataKey="eth" name="Hold ETH" stroke="#ff4fa6" strokeWidth={1.5} dot={false} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
       <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] mt-2">
         <span className="text-acid">━ Steward index {ret(r.index)}</span>
-        <span className="text-[#5fd0ff]">━ Equal weight {ret(r.equalWeight)}</span>
+        <span className="text-info">━ Equal weight {ret(r.equalWeight)}</span>
         <span className="text-pink">━ Hold ETH {ret(r.ethHold)}</span>
       </div>
     </div>

@@ -23,7 +23,7 @@ export function SignalBars({ signals }: { signals: SignalScores }) {
                 className="h-full"
                 style={{
                   width: `${value}%`,
-                  background: isRisk ? (value > 60 ? "#ff5d5d" : "#ffd23f") : "#baff29",
+                  background: isRisk ? (value > 60 ? "#ff5d5d" : "#ffd23f") : "var(--acid)",
                 }}
               />
             </div>

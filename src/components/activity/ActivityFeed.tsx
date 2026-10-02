@@ -6,7 +6,7 @@ const CATEGORY_TINT: Record<ActivityEvent["category"], string> = {
   TRADE: "text-acid",
   RISK: "text-[#ff5d5d]",
   MOOD: "text-pink",
-  MEMORY: "text-[#5fd0ff]",
+  MEMORY: "text-info",
   LEVEL: "text-[#ffd23f]",
 };
 
@@ -15,7 +15,9 @@ function timeAgo(ts: number) {
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
-  return `${Math.round(minutes / 60)}h ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
 }
 
 export function ActivityFeed({ events }: { events: ActivityEvent[] }) {

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LivePanel } from "@/components/live/LivePanel";
 import { BookSummary } from "@/components/live/BookView";
+import { LiveRiskPanel } from "@/components/live/LiveRiskPanel";
 import { useEngine } from "@/lib/hooks/useEngine";
 import { catRead, liveVitals, satelliteVerdictFor, verdictFor, type TokenVerdict } from "@/lib/live/engine";
 import { LiveLevel, LiveVitals, TrackRecord, liveStage } from "@/components/live/LiveVitals";
@@ -254,7 +255,13 @@ export default function CatRoomPage() {
                   Holdings and targets →
                 </Link>
               </div>
-            ) : (
+            ) : null}
+            {live && engine?.ok && engine.risk ? (
+              <div className="chunky-border bg-ink-raised rounded-2xl p-4">
+                <LiveRiskPanel risk={engine.risk} gate={engine.gate.decision} />
+              </div>
+            ) : null}
+            {live ? null : (
               <>
                 <div className="chunky-border bg-ink-raised rounded-2xl p-4">
                   <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Portfolio</h2>
@@ -268,10 +275,10 @@ export default function CatRoomPage() {
               </>
             )}
 
-            <div className={`chunky-border bg-ink-raised rounded-2xl p-4 h-96 flex flex-col ${live ? "hidden" : ""}`}>
-              <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Activity</h2>
+            <div className="chunky-border bg-ink-raised rounded-2xl p-4 h-96 flex flex-col">
+              <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Activity{live ? " · real events" : ""}</h2>
               <div className="flex-1 min-h-0">
-                <ActivityFeed events={sim.activity} />
+                <ActivityFeed events={live ? (engine?.ok ? engine.activity : []) : sim.activity} />
               </div>
             </div>
           </div>

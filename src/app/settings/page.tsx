@@ -6,6 +6,7 @@ import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 import { useRequireCat } from "@/lib/hooks/useRequireCat";
 import { AutonomySelector } from "@/components/settings/AutonomySelector";
 import { TrainingPanel } from "@/components/settings/TrainingPanel";
+import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import { Slider } from "@/components/ui/slider";
 
 export default function SettingsPage() {
@@ -35,6 +36,11 @@ export default function SettingsPage() {
             important hides behind vague language.
           </p>
         </div>
+
+        <section className="chunky-border bg-ink-raised rounded-2xl p-4 space-y-3">
+          <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Colour theme</h2>
+          <ThemeSelector />
+        </section>
 
         <section className="chunky-border bg-ink-raised rounded-2xl p-4 space-y-3">
           <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Autonomy mode</h2>

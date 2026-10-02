@@ -31,7 +31,13 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen crt-scanlines relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,#baff2915,transparent_45%),radial-gradient(circle_at_80%_70%,#ff4fa615,transparent_45%)]" />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--acid) 8%, transparent), transparent 45%), radial-gradient(circle at 80% 70%, color-mix(in srgb, var(--pink) 8%, transparent), transparent 45%)",
+        }}
+      />
 
       <header className="relative z-10 flex items-center justify-between px-6 py-5 max-w-6xl mx-auto">
         <span className="font-display font-bold text-lg tracking-tight">

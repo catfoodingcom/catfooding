@@ -21,18 +21,18 @@ export function EquityChart({ data }: { data: EquityPoint[] }) {
       <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
         <defs>
           <linearGradient id="equityFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#baff29" stopOpacity={0.4} />
-            <stop offset="95%" stopColor="#baff29" stopOpacity={0} />
+            <stop offset="5%" stopColor="var(--acid)" stopOpacity={0.4} />
+            <stop offset="95%" stopColor="var(--acid)" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <XAxis dataKey="time" tick={{ fontSize: 9, fill: "#9a9887" }} axisLine={{ stroke: "#34362653" }} tickLine={false} minTickGap={40} />
-        <YAxis tick={{ fontSize: 9, fill: "#9a9887" }} axisLine={false} tickLine={false} domain={["auto", "auto"]} width={56} />
+        <XAxis dataKey="time" tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={{ stroke: "var(--border)" }} tickLine={false} minTickGap={40} />
+        <YAxis tick={{ fontSize: 9, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} domain={["auto", "auto"]} width={56} />
         <Tooltip
-          contentStyle={{ background: "#16180f", border: "2px solid #f3efdf", borderRadius: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}
-          labelStyle={{ color: "#9a9887" }}
-          itemStyle={{ color: "#baff29" }}
+          contentStyle={{ background: "var(--ink-raised)", border: "2px solid var(--cream)", borderRadius: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}
+          labelStyle={{ color: "var(--muted-foreground)" }}
+          itemStyle={{ color: "var(--acid)" }}
         />
-        <Area type="monotone" dataKey="value" stroke="#baff29" strokeWidth={2} fill="url(#equityFill)" />
+        <Area type="monotone" dataKey="value" stroke="var(--acid)" strokeWidth={2} fill="url(#equityFill)" />
       </AreaChart>
     </ResponsiveContainer>
   );

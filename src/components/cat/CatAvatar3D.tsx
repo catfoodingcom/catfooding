@@ -11,17 +11,20 @@ import { CatAvatar } from "./CatAvatar";
 // Same palette as the SVG avatar's GLOW_BY_STATE (and CatAvatarModel's
 // STATE_GLOW material tint) — the blurred haze behind the canvas so the 3D
 // avatar sits inside the same soft glow the SVG one always had.
+// Glow colours may be theme tokens (var(--acid)), so fade them with color-mix, not a hex alpha suffix.
+const alpha = (color: string, percent: number) => `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+
 const GLOW_BY_STATE: Record<CatBehaviorState, string> = {
-  sleeping: "#5fd0ff",
-  idle: "#baff29",
-  watching: "#baff29",
+  sleeping: "var(--info)",
+  idle: "var(--acid)",
+  watching: "var(--acid)",
   stalking: "#ffb84f",
   hunting: "#ff4fa6",
-  celebrating: "#baff29",
+  celebrating: "var(--acid)",
   injured: "#ff5d5d",
   nervous: "#ff5d5d",
-  curious: "#5fd0ff",
-  bored: "#9a9887",
+  curious: "var(--info)",
+  bored: "var(--muted-foreground)",
 };
 
 interface CatAvatar3DProps {
@@ -103,7 +106,7 @@ export function CatAvatar3D({
       style={{
         width: size,
         height: size,
-        background: `radial-gradient(circle at 50% 42%, ${glow}33 0%, ${glow}1a 36%, transparent 74%)`,
+        background: `radial-gradient(circle at 50% 42%, ${alpha(glow, 20)} 0%, ${alpha(glow, 10)} 36%, transparent 74%)`,
       }}
     />
   );
@@ -121,7 +124,7 @@ export function CatAvatar3D({
         className="absolute inset-0 rounded-full blur-2xl"
         // Radial halo (bright behind the cat, fading to transparent) instead of a
         // solid color field — keeps the glow BEHIND the cat so the cat reads clearly.
-        style={{ background: `radial-gradient(circle at 50% 46%, ${glow}cc 0%, ${glow}55 44%, transparent 74%)` }}
+        style={{ background: `radial-gradient(circle at 50% 46%, ${alpha(glow, 80)} 0%, ${alpha(glow, 33)} 44%, transparent 74%)` }}
         animate={{ opacity: [0.5, 0.85, 0.5] }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
       />

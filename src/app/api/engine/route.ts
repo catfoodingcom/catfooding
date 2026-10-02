@@ -7,7 +7,9 @@ import {
   type LiveBacktest,
   type LiveBook,
   type LiveCalendarEvent,
+  type LiveActivity,
   type LiveRecord,
+  type LiveRisk,
   type LiveToken,
 } from "@/lib/live/engine";
 
@@ -137,6 +139,74 @@ function buildRecord(trades: Raw | null, calendar: Raw | null, sentinel: Raw | n
   return { since, items, xp: items.reduce((sum, i) => sum + i.count * i.xpEach, 0) };
 }
 
+function buildRisk(tei: Raw | null, swaps: Raw[]): LiveRisk | null {
+  const packet: Raw | undefined = tei?.verdict?.packet;
+  if (!packet) return null;
+  const equity = num(packet.equity);
+  const buy = num(packet.buy_usd);
+  const ceiling = /ceiling (\d+(?:\.\d+)?)%/.exec(strings(tei?.verdict?.rationale).join(" "));
+  const impacts = swaps.map((s) => num(s.impact)).filter((n): n is number => n != null);
+  return {
+    executorMode: str(tei?.mode),
+    stagedBuyUsd: buy,
+    stagedBuyPct: buy != null && equity ? Math.round((buy / equity) * 1000) / 10 : null,
+    deployCeilingPct: ceiling ? Number(ceiling[1]) : null,
+    largestLegPct: num(packet.concentration_pct),
+    thinDeployPct: num(packet.thin_deploy_pct),
+    worstImpactPct: impacts.length ? Math.max(...impacts) : null,
+    legsPassing: swaps.filter((s) => s.gate === "pass").length,
+    legsTotal: swaps.length,
+    flags: strings(tei?.verdict?.flags),
+  };
+}
+
+// A dated log of what the engine and its operator actually did, newest first.
+// Fills carry no transaction link here: the link would identify the wallet.
+function buildActivity(tei: Raw | null, calendar: Raw | null, sentinel: Raw | null, trades: Raw | null, since: string | null): LiveActivity[] {
+  const out: LiveActivity[] = [];
+  const add = (iso: unknown, e: Omit<LiveActivity, "id" | "timestamp">) => {
+    const timestamp = typeof iso === "string" ? Date.parse(iso) : NaN;
+    if (Number.isFinite(timestamp)) out.push({ id: `${e.category}-${timestamp}-${out.length}`, timestamp, ...e });
+  };
+  const day = since?.slice(0, 10) ?? null;
+
+  if (tei?.verdict?.decision) {
+    add(tei.asof, { icon: "🚦", category: "RISK", message: `Gate says ${tei.verdict.decision}. ${strings(tei.verdict.rationale)[0] ?? ""}`.trim() });
+  }
+  if (tei?.deliberation?.stance) {
+    add(tei.deliberation.asof, {
+      icon: "⚖️",
+      category: "MOOD",
+      message: `Council deliberated: ${tei.deliberation.stance} (${tei.deliberation.confidence ?? "unrated"} confidence).`,
+    });
+  }
+  for (const e of (calendar?.upcoming ?? []) as Raw[]) {
+    if (e.hold?.active) add(e.hold.from, { icon: "⏳", category: "RISK", message: `Calendar hold began for ${e.event}: no new buying until it has printed and settled.` });
+  }
+  for (const e of (calendar?.past ?? []) as Raw[]) {
+    if (!day || e.kind !== "scheduled" || e.scope !== "broad" || String(e.date) < day) continue;
+    const figures = num(e.actual) != null ? ` Actual ${e.actual}${e.unit ?? ""}${num(e.forecast) != null ? ` vs ${e.forecast}${e.unit ?? ""} forecast` : ""}.` : "";
+    add(e.hold?.to ?? `${e.date}T${e.timeUtc ?? "00:00"}:00Z`, { icon: "📅", category: "LEVEL", message: `Waited through ${e.event}.${figures}`, xpChange: RECORD_XP.hold });
+  }
+  if (sentinel?.hypothesis?.published) {
+    add(sentinel.hypothesis.published, { icon: "🔭", category: "MEMORY", message: `Sentinel published a ${sentinel.hypothesis.posture ?? "macro"} view, with a stated kill condition.` });
+  }
+  for (const r of (Array.isArray(sentinel?.record) ? sentinel.record : []) as Raw[]) {
+    if (str(r.outcome)) add(r.expires, { icon: "✅", category: "MEMORY", message: `Macro view "${r.posture}" resolved: ${r.outcome}.`, xpChange: RECORD_XP.hypothesis });
+  }
+  for (const t of (Array.isArray(trades?.trades) ? trades.trades : []) as Raw[]) {
+    if (!day || !str(t.txHash) || String(t.ts).slice(0, 10) < day) continue;
+    const who = t.source === "manual" ? "authorized by a human" : `by ${t.agentLabel ?? "an agent"}`;
+    add(t.ts, {
+      icon: t.side === "SELL" ? "📤" : "🐾",
+      category: "TRADE",
+      message: `${t.side === "SELL" ? "Sold" : "Bought"} ${t.symbol} for $${Number(t.usdt).toFixed(0)}, ${who}. Verified on X Layer.`,
+      xpChange: RECORD_XP.fill,
+    });
+  }
+  return out.sort((a, b) => b.timestamp - a.timestamp).slice(0, 40);
+}
+
 export async function GET() {
   const failures: string[] = [];
   const [tei, calendar, sentinel, book, trades] = await Promise.all([
@@ -197,6 +267,8 @@ export async function GET() {
         planUsd: swap && num(swap.usd) != null ? (swap.side === "SELL" ? -swap.usd : swap.usd) : null,
       };
     });
+
+  const record = buildRecord(trades, calendar, sentinel);
 
   const state: EngineState = {
     ok: !!tei,
@@ -263,7 +335,9 @@ export async function GET() {
     satellite,
     book: buildBook(book, tei, swaps),
     backtest: buildBacktest(tei),
-    record: buildRecord(trades, calendar, sentinel),
+    record,
+    risk: buildRisk(tei, swaps),
+    activity: buildActivity(tei, calendar, sentinel, trades, record?.since ?? null),
     failures,
   };
 

@@ -13,8 +13,8 @@ const STATS: StatDef[] = [
   { key: "health", icon: "❤️", label: "Health", color: "#ff5d5d", tooltip: "Reflects portfolio drawdown. Recovers as the portfolio recovers." },
   { key: "energy", icon: "⚡", label: "Energy", color: "#ffd23f", tooltip: "Remaining trading activity budget. Regenerates over time; rate-limits overtrading." },
   { key: "hunger", icon: "🍣", label: "Hunger", color: "#ff9f4f", tooltip: "Desire to search for new opportunities. Rises over time, satisfied by feeding or good hunts." },
-  { key: "focus", icon: "🎯", label: "Focus", color: "#5fd0ff", tooltip: "Required signal quality before acting." },
-  { key: "confidence", icon: "😼", label: "Confidence", color: "#baff29", tooltip: "Position sizing tendency — rises on win streaks, falls on losses." },
+  { key: "focus", icon: "🎯", label: "Focus", color: "var(--info)", tooltip: "Required signal quality before acting." },
+  { key: "confidence", icon: "😼", label: "Confidence", color: "var(--acid)", tooltip: "Position sizing tendency — rises on win streaks, falls on losses." },
   { key: "caution", icon: "🛡", label: "Caution", color: "#ff4fa6", tooltip: "Risk tolerance, inverse of confidence, shaped by fear." },
 ];
 

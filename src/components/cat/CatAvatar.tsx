@@ -10,15 +10,15 @@ interface CatAvatarProps {
 }
 
 const GLOW_BY_STATE: Record<CatBehaviorState, string> = {
-  sleeping: "#5fd0ff",
-  idle: "#baff29",
-  watching: "#baff29",
+  sleeping: "var(--info)",
+  idle: "var(--acid)",
+  watching: "var(--acid)",
   stalking: "#ffb84f",
   hunting: "#ff4fa6",
-  celebrating: "#baff29",
+  celebrating: "var(--acid)",
   injured: "#ff5d5d",
   nervous: "#ff5d5d",
-  curious: "#5fd0ff",
+  curious: "var(--info)",
   bored: "#9a9887",
 };
 

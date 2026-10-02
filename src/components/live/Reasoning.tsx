@@ -95,7 +95,7 @@ function View({ h }: { h: LiveHypothesis }) {
       )}
       {h.watching.length > 0 && (
         <div>
-          <span className="text-[#5fd0ff] uppercase text-[10px] tracking-wider">Watching</span>
+          <span className="text-info uppercase text-[10px] tracking-wider">Watching</span>
           <ul className="list-disc pl-5 space-y-1 mt-1">
             {h.watching.map((w) => (
               <li key={w}>{w}</li>

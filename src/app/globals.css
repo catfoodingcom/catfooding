@@ -60,6 +60,7 @@
   --color-acid-dim: var(--acid-dim);
   --color-pink: var(--pink);
   --color-pink-dim: var(--pink-dim);
+  --color-info: var(--info);
 }
 
 :root,
@@ -71,6 +72,8 @@
   --acid-dim: #7ea82b;
   --pink: #ff4fa6;
   --pink-dim: #b23a76;
+  /* second accent: info, the Focus bar, comparison lines */
+  --info: #5fd0ff;
 
   --background: var(--ink);
   --foreground: var(--cream);
@@ -79,31 +82,49 @@
   --popover: var(--ink-raised);
   --popover-foreground: var(--cream);
   --primary: var(--acid);
-  --primary-foreground: #0d0e0c;
+  --primary-foreground: var(--ink);
   --secondary: #23261a;
   --secondary-foreground: var(--cream);
   --muted: #1c1e14;
   --muted-foreground: #9a9887;
   --accent: var(--pink);
-  --accent-foreground: #0d0e0c;
+  --accent-foreground: var(--ink);
   --destructive: #ff5d5d;
   --border: #34362653;
   --input: #34362680;
   --ring: var(--acid);
   --chart-1: var(--acid);
   --chart-2: var(--pink);
-  --chart-3: #5fd0ff;
+  --chart-3: var(--info);
   --chart-4: #ffb84f;
-  --chart-5: #9a9887;
+  --chart-5: var(--muted-foreground);
   --radius: 0.5rem;
   --sidebar: var(--ink-raised);
   --sidebar-foreground: var(--cream);
   --sidebar-primary: var(--acid);
-  --sidebar-primary-foreground: #0d0e0c;
+  --sidebar-primary-foreground: var(--ink);
   --sidebar-accent: var(--pink);
-  --sidebar-accent-foreground: #0d0e0c;
+  --sidebar-accent-foreground: var(--ink);
   --sidebar-border: #34362653;
   --sidebar-ring: var(--acid);
+}
+
+/* Terminal blue: blue-black base, terminal-blue accent, purple second accent.
+ * Pink is shared. Red (refuse) and amber (wait) carry meaning and are the
+ * same in every theme. Set by next-themes as data-theme on <html>. */
+html[data-theme="blue"] {
+  --ink: #0a0c14;
+  --ink-raised: #121624;
+  --cream: #eef0f7;
+  --acid: #4dc4ff;
+  --acid-dim: #2f86c2;
+  --info: #a78bfa;
+  --secondary: #1c2136;
+  --muted: #171b2c;
+  --muted-foreground: #8f93a8;
+  --border: #2e355553;
+  --input: #2e355580;
+  --sidebar-border: #2e355553;
 }
 
 @layer base {

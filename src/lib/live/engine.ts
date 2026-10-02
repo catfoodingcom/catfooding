@@ -146,6 +146,32 @@ export interface LiveRecord {
 
 export const RECORD_XP = { fill: 15, hold: 5, hypothesis: 20 } as const;
 
+/** What the gate measured on the staged plan, and the limits it is held to. */
+export interface LiveRisk {
+  executorMode: string | null;
+  stagedBuyUsd: number | null;
+  stagedBuyPct: number | null;
+  /** Advisory ceiling on deploying new risk in one go, as stated by the gate. */
+  deployCeilingPct: number | null;
+  largestLegPct: number | null;
+  thinDeployPct: number | null;
+  worstImpactPct: number | null;
+  legsPassing: number;
+  legsTotal: number;
+  flags: string[];
+}
+
+/** One real, dated event from the public feeds. */
+export interface LiveActivity {
+  id: string;
+  /** epoch ms */
+  timestamp: number;
+  icon: string;
+  message: string;
+  category: "SYSTEM" | "TRADE" | "RISK" | "MOOD" | "MEMORY" | "LEVEL";
+  xpChange?: number;
+}
+
 export interface EngineState {
   ok: boolean;
   fetchedAt: string;
@@ -169,6 +195,8 @@ export interface EngineState {
   book: LiveBook | null;
   backtest: LiveBacktest | null;
   record: LiveRecord | null;
+  risk: LiveRisk | null;
+  activity: LiveActivity[];
   /** Feeds that could not be read this time. */
   failures: string[];
 }
@@ -341,7 +369,7 @@ export function liveVitals(engine: EngineState): LiveVital[] {
       key: "focus",
       icon: "🎯",
       label: "Focus",
-      color: "#5fd0ff",
+      color: "var(--info)",
       value: engine.ageMinutes == null ? 0 : clamp100(100 - (engine.ageMinutes / STALE_AFTER_MIN) * 100),
       caption: engine.ageMinutes == null ? "No engine reading" : `Engine reading is ${engine.ageMinutes} min old`,
     },
@@ -349,7 +377,7 @@ export function liveVitals(engine: EngineState): LiveVital[] {
       key: "confidence",
       icon: "😼",
       label: "Confidence",
-      color: "#baff29",
+      color: "var(--acid)",
       value: CONFIDENCE_SCORE[confidence] ?? 0,
       caption: gate.council?.stance ? `Council is ${confidence || "unrated"} confidence in "${gate.council.stance}"` : "No Council reading",
     },
