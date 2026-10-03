@@ -13,7 +13,7 @@ const GLOW_BY_STATE: Record<CatBehaviorState, string> = {
   sleeping: "var(--info)",
   idle: "var(--acid)",
   watching: "var(--acid)",
-  stalking: "#ffb84f",
+  stalking: "var(--acid)", // paw up: glows in the accent colour
   hunting: "#ff4fa6",
   celebrating: "var(--acid)",
   injured: "#ff5d5d",

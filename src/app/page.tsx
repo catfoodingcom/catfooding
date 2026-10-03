@@ -6,6 +6,9 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { CatAvatar3D as CatAvatar } from "@/components/cat/CatAvatar3D";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
+import { useEngine } from "@/lib/hooks/useEngine";
+import { catSize, useViewportWidth } from "@/lib/hooks/useViewportWidth";
+import { catRead, verdictFor, type TokenVerdict } from "@/lib/live/engine";
 
 const FEATURES = [
   { icon: "🐾", label: "Autonomous hunting", desc: "Scans a live token universe every tick and decides for itself." },
@@ -22,6 +25,18 @@ export default function LandingPage() {
   const loadDemo = useCatFoodStore((s) => s.loadDemo);
   const start = useCatFoodStore((s) => s.start);
   const hasSavedCat = !!sim;
+
+  // The preview is genuinely live: the pose is the engine's current verdict, never a rotation.
+  const { engine, error } = useEngine(true);
+  const read = (() => {
+    if (!engine?.ok) return null;
+    const verdicts: Record<string, TokenVerdict> = {};
+    for (const t of engine.tokens) verdicts[t.symbol] = verdictFor(t, engine);
+    return catRead(engine, verdicts);
+  })();
+  const vw = useViewportWidth();
+  // one column below lg (page padding + card padding); two columns above it
+  const size = vw < 1024 ? catSize(vw, 440, 112) : catSize(Math.min(vw, 1152) / 2, 520, 88);
 
   function watchTheHunt() {
     loadDemo();
@@ -93,18 +108,22 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="chunky-border-acid bg-ink-raised rounded-2xl p-10 flex items-center justify-center relative">
+        <div className="chunky-border-acid bg-ink-raised rounded-2xl px-4 pt-9 pb-4 flex flex-col items-center relative">
           <span className="absolute top-3 left-4 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            live preview
+            <span className="text-acid">●</span> live · the engine&apos;s verdict right now
           </span>
-          <CatAvatar
-            state={sim?.cat.currentState ?? "curious"}
-            mood={sim?.cat.mood ?? 40}
-            size={260}
-            evolutionStage={sim?.cat.evolutionStage ?? "Hunter"}
-            hunger={sim?.cat.hunger ?? 25}
-            showSvgWhileLoading={false}
-          />
+          <CatAvatar state={read?.state ?? "curious"} mood={40} size={size} evolutionStage="Hunter" hunger={0} showSvgWhileLoading={false} />
+          <p className="font-mono text-xs text-center text-cream/85 leading-relaxed max-w-md min-h-[2.5rem]">
+            {read ? (
+              <>
+                <span className="text-acid uppercase tracking-wider">{read.headline}</span> · {read.thought}
+              </>
+            ) : error ? (
+              "Can't reach the engine right now. The cat won't guess."
+            ) : (
+              "Reading the engine…"
+            )}
+          </p>
         </div>
       </main>
     </div>

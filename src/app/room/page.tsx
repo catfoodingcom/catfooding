@@ -24,6 +24,7 @@ import { LivePanel } from "@/components/live/LivePanel";
 import { BookSummary } from "@/components/live/BookView";
 import { LiveRiskPanel } from "@/components/live/LiveRiskPanel";
 import { useEngine } from "@/lib/hooks/useEngine";
+import { catSize, useViewportWidth } from "@/lib/hooks/useViewportWidth";
 import { catRead, liveVitals, satelliteVerdictFor, verdictFor, type TokenVerdict } from "@/lib/live/engine";
 import { LiveLevel, LiveVitals, TrackRecord, liveStage } from "@/components/live/LiveVitals";
 
@@ -72,6 +73,10 @@ export default function CatRoomPage() {
     if (sim && !isRunning && !live) start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sim?.cat.id]);
+
+  const vw = useViewportWidth();
+  // main column: full width on small screens, beside the 320px sidebar from lg up
+  const avatarSize = vw < 1024 ? catSize(vw, 440, 96) : catSize(Math.min(vw, 1152) - 320, 520, 140);
 
   if (!sim || !market) return null;
   const { cat, portfolio, riskSettings } = sim;
@@ -156,7 +161,7 @@ export default function CatRoomPage() {
               </div>
 
               <div className="flex flex-col items-center py-4">
-                <CatAvatar state={read?.state ?? (live ? "curious" : cat.currentState)} mood={cat.mood} size={260} evolutionStage={cat.evolutionStage} hunger={cat.hunger} showSvgWhileLoading={false} />
+                <CatAvatar state={read?.state ?? (live ? "curious" : cat.currentState)} mood={cat.mood} size={avatarSize} evolutionStage={cat.evolutionStage} hunger={live ? 0 : cat.hunger} showSvgWhileLoading={false} />
                 <div className="mt-3 w-full max-w-sm">
                   <CatThoughtBubble thought={live ? (read?.thought ?? (engineError ? "Can't reach the engine. Not guessing." : "Sniffing the engine…")) : cat.currentThought} />
                 </div>

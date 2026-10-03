@@ -18,7 +18,7 @@ const GLOW_BY_STATE: Record<CatBehaviorState, string> = {
   sleeping: "var(--info)",
   idle: "var(--acid)",
   watching: "var(--acid)",
-  stalking: "#ffb84f",
+  stalking: "var(--acid)", // paw up: glows in the accent colour
   hunting: "#ff4fa6",
   celebrating: "var(--acid)",
   injured: "#ff5d5d",
@@ -44,17 +44,32 @@ interface CatAvatar3DProps {
   hunger?: number;
   /** Explicit override — when set, always used verbatim instead of the
    * hunger-based default/hungry choice below. Where the exported GLB
-   * lives, relative to /public. Drop the Meshy export at
-   * catfood/public/models/cat.glb and this just works. */
+   * lives, relative to /public. */
   modelUrl?: string;
   /** Uses a neutral loading shell instead of flashing the legacy SVG avatar
    * while the GLB is loading. Error fallback still uses SVG for resilience. */
   showSvgWhileLoading?: boolean;
 }
 
-const DEFAULT_MODEL_URL = "/models/cat.glb";
+const DEFAULT_MODEL_URL = "/models/cat-standing.glb";
 const HUNGRY_MODEL_URL = "/models/cat-hungry.glb";
 const SLEEPY_MODEL_URL = "/models/cat-sleepy.glb";
+const BECKONING_MODEL_URL = "/models/cat-beckoning.glb";
+const SITTING_MODEL_URL = "/models/cat-sitting.glb";
+
+// The pose IS the expression: one model per behaviour. Paw raised means the cat would act
+// (HUNT); sitting means it is waiting (WAIT); standing is the neutral watch (WATCH).
+// There is no turn-away pose for a refusal yet: REFUSE stands, and reads through the red
+// glow and the card. The hungry and sleepy models are the older head-only style.
+const MODEL_BY_STATE: Partial<Record<CatBehaviorState, string>> = {
+  stalking: BECKONING_MODEL_URL,
+  hunting: BECKONING_MODEL_URL,
+  celebrating: BECKONING_MODEL_URL,
+  watching: SITTING_MODEL_URL,
+  nervous: DEFAULT_MODEL_URL,
+  sleeping: SLEEPY_MODEL_URL,
+  injured: HUNGRY_MODEL_URL,
+};
 const HUNGRY_THRESHOLD = 70;
 
 // All small (a few hundred KB each) — preloading them means a model swap
@@ -63,6 +78,8 @@ const HUNGRY_THRESHOLD = 70;
 useGLTF.preload(DEFAULT_MODEL_URL);
 useGLTF.preload(HUNGRY_MODEL_URL);
 useGLTF.preload(SLEEPY_MODEL_URL);
+useGLTF.preload(BECKONING_MODEL_URL);
+useGLTF.preload(SITTING_MODEL_URL);
 
 /** Suspense catches the "still loading" case; it does not catch errors.
  * A missing/broken GLB (e.g. nothing has been dropped into
@@ -111,12 +128,10 @@ export function CatAvatar3D({
     />
   );
   const isHungry = (hunger ?? 0) >= HUNGRY_THRESHOLD;
-  // Model-swap "expressions": nervous (a risk veto) recoils to the hungry model,
-  // hunger swaps to it too, sleeping to the sleepy model, else the default. These
-  // render on Vercel; local dev shows white only because of the Draco/webp decoder
-  // gap (all GLBs, not these specifically). The refuse also reads via RED glow + card.
-  const resolvedModelUrl =
-    modelUrl ?? (state === "nervous" || isHungry ? HUNGRY_MODEL_URL : state === "sleeping" ? SLEEPY_MODEL_URL : DEFAULT_MODEL_URL);
+  // Model-swap "expressions": the behaviour state picks the pose (see MODEL_BY_STATE). A
+  // state with its own pose wins; otherwise a hungry cat shows the hungry model, else the
+  // default standing one. The refuse also reads via the RED glow + card.
+  const resolvedModelUrl = modelUrl ?? MODEL_BY_STATE[state] ?? (isHungry ? HUNGRY_MODEL_URL : DEFAULT_MODEL_URL);
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
