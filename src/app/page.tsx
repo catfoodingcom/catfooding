@@ -8,7 +8,7 @@ import { CatAvatar3D as CatAvatar } from "@/components/cat/CatAvatar3D";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 import { useEngine } from "@/lib/hooks/useEngine";
 import { catSize, useViewportWidth } from "@/lib/hooks/useViewportWidth";
-import { catRead, verdictFor, type TokenVerdict } from "@/lib/live/engine";
+import { catRead, satelliteVerdictFor, verdictFor, type TokenVerdict } from "@/lib/live/engine";
 
 const FEATURES = [
   { icon: "🐾", label: "Autonomous hunting", desc: "Scans a live token universe every tick and decides for itself." },
@@ -31,8 +31,10 @@ export default function LandingPage() {
   const read = (() => {
     if (!engine?.ok) return null;
     const verdicts: Record<string, TokenVerdict> = {};
+    const satellite: Record<string, TokenVerdict> = {};
     for (const t of engine.tokens) verdicts[t.symbol] = verdictFor(t, engine);
-    return catRead(engine, verdicts);
+    for (const t of engine.satellite) satellite[t.symbol] = satelliteVerdictFor(t, engine);
+    return catRead(engine, verdicts, satellite);
   })();
   const vw = useViewportWidth();
   // one column below lg (page padding + card padding); two columns above it

@@ -315,22 +315,41 @@ export interface CatRead {
   headline: LiveVerdict;
 }
 
-/** One cat, six tokens: the cat shows the most actionable thing it sees. */
-export function catRead(engine: EngineState, verdicts: Record<string, TokenVerdict>): CatRead {
-  const all = Object.entries(verdicts);
-  const of = (v: LiveVerdict) => all.filter(([, t]) => t.verdict === v);
-  const hunts = of("HUNT");
-  if (hunts.length) {
+/** One cat, the whole index: the cat shows the most actionable thing it sees across the stock
+ * tokens and the crypto satellite. A raised paw means "something in the index is worth buying".
+ * The thought says which kind, because the two are judged differently: a stock passed the
+ * fair-price check; a satellite asset has none to pass. */
+export function catRead(engine: EngineState, verdicts: Record<string, TokenVerdict>, satelliteVerdicts: Record<string, TokenVerdict> = {}): CatRead {
+  const stocks = Object.entries(verdicts);
+  const sats = Object.entries(satelliteVerdicts);
+  const all = [...stocks, ...sats];
+  const names = (rows: [string, TokenVerdict][], v: LiveVerdict) => rows.filter(([, t]) => t.verdict === v).map(([s]) => s);
+
+  const stockHunts = names(stocks, "HUNT");
+  const satHunts = names(sats, "HUNT");
+  if (stockHunts.length || satHunts.length) {
+    const parts: string[] = [];
+    if (stockHunts.length) parts.push(`${stockHunts.join(", ")}: real, fair and allowed.`);
+    if (satHunts.length) parts.push(`${satHunts.join(", ")}: tradable and allowed.`);
+    parts.push("Paw up.");
+    if (!stockHunts.length && stocks.length) {
+      // the paw is up for the satellite only: say where the stocks stand, so it isn't read as a stock signal
+      const refused = names(stocks, "REFUSE");
+      if (refused.length) parts.push(`Refusing ${refused.join(", ")}.`);
+      else if (names(stocks, "WAIT").length === stocks.length) parts.push("The stocks are waiting.");
+      else parts.push("No stock is strong enough yet.");
+    }
     // Paw up means "this is good food", not "we are buying": say so when our own bowl is full.
-    const full = engine.gate.decision === "hold" ? " Our own book is already on target." : "";
-    return { state: "stalking", headline: "HUNT", thought: `${hunts.map(([s]) => s).join(", ")}: real, fair and allowed. Paw up.${full}` };
+    if (engine.gate.decision === "hold") parts.push("Our own book is already on target.");
+    return { state: "stalking", headline: "HUNT", thought: parts.join(" ") };
   }
-  const refuses = of("REFUSE");
+
+  const refuses = all.filter(([, t]) => t.verdict === "REFUSE");
   if (refuses.length) {
     const thought = refuses.length === all.length ? refuses[0][1].reason : `Refusing ${refuses.map(([s]) => s).join(", ")}. ${refuses[0][1].reason}`;
     return { state: "nervous", headline: "REFUSE", thought };
   }
-  const waits = of("WAIT");
+  const waits = all.filter(([, t]) => t.verdict === "WAIT");
   if (waits.length) return { state: "watching", headline: "WAIT", thought: waits[0][1].reason };
   if (!all.length) return { state: "curious", headline: "WATCH", thought: "Can't reach the engine. Not guessing." };
   return { state: "idle", headline: "WATCH", thought: "Everything's allowed, nothing's strong. Watching." };

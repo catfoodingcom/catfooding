@@ -67,7 +67,7 @@ export default function CatRoomPage() {
     if (engine?.ok) for (const t of engine.satellite) out[t.symbol] = satelliteVerdictFor(t, engine);
     return out;
   }, [engine]);
-  const read = useMemo(() => (live && engine ? catRead(engine, verdicts) : null), [live, engine, verdicts]);
+  const read = useMemo(() => (live && engine ? catRead(engine, verdicts, satelliteVerdicts) : null), [live, engine, verdicts, satelliteVerdicts]);
 
   useEffect(() => {
     if (sim && !isRunning && !live) start();
