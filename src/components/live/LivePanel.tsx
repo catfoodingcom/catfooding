@@ -41,7 +41,7 @@ export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePa
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono text-[10px]">
-        <GateReasoning gate={gate} tile={<Fact label="Gate" value={gate.decision ?? "unknown"} sub={gate.council?.stance ? `Council: ${gate.council.stance}` : ""} more />} />
+        <GateReasoning gate={gate} tile={<Fact label="Gate · our book" value={gate.decision === "hold" ? "on target" : (gate.decision ?? "unknown")} sub={gate.council?.stance ? `Council: ${gate.council.stance}` : ""} more />} />
         <Fact label="Tokens" value="trading 24/7" sub="X Layer, always open" />
         <Fact
           label="Fair-price check"
@@ -56,6 +56,16 @@ export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePa
       </div>
 
       {gate.rationale[0] && <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">Gate: {gate.rationale[0]}</p>}
+      <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
+        The gate above is about <span className="text-cream">our book</span>. The verdicts below are about <span className="text-cream">each token</span>, for
+        anyone who could buy it
+        {engine.entry && (
+          <>
+            : right now {engine.entry.released} of {engine.entry.total} index legs are open to a new entry
+          </>
+        )}
+        .
+      </p>
 
       <div className="space-y-1.5 border-t border-border pt-3">
         <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">

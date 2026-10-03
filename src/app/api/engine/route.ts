@@ -336,6 +336,9 @@ export async function GET() {
     book: buildBook(book, tei, swaps),
     backtest: buildBacktest(tei),
     record,
+    entry: Array.isArray(tei?.entry?.legs)
+      ? { decision: str(tei.entry.decision), released: (tei.entry.legs as Raw[]).filter((l) => l.release === true).length, total: tei.entry.legs.length }
+      : null,
     risk: buildRisk(tei, swaps),
     activity: buildActivity(tei, calendar, sentinel, trades, record?.since ?? null),
     failures,

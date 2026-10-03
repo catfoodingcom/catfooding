@@ -195,6 +195,8 @@ export interface EngineState {
   book: LiveBook | null;
   backtest: LiveBacktest | null;
   record: LiveRecord | null;
+  /** The engine's own answer to "could a book starting from cash enter the index now?" */
+  entry: { decision: string | null; released: number; total: number } | null;
   risk: LiveRisk | null;
   activity: LiveActivity[];
   /** Feeds that could not be read this time. */
@@ -215,10 +217,25 @@ export interface TokenVerdict {
 
 const pct = (n: number) => `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
 
+/** A token's verdict is about the token, for someone who could buy it. The gate's verdict is
+ * about OUR book's rebalance: it reads "hold" when our book is on target and has nothing to
+ * buy, which says nothing against the token. Only a "defer" (the rules withholding new
+ * risk) or a missing reading blocks a token's verdict. */
+export function rulesAllowBuying(gate: LiveGate): boolean {
+  return gate.decision != null && gate.decision !== "defer";
+}
+
+function gateDetail(gate: LiveGate): string {
+  if (gate.decision === "hold") return "allowed; our own book is on target, so nothing to rebalance";
+  if (gate.decision === "approve") return "gate approves";
+  if (gate.decision === "defer") return "gate deferring new buying";
+  return "no gate reading";
+}
+
 export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict {
   const { session, gate, calendar } = engine;
   const premiumOk = token.premiumPct == null ? null : Math.abs(token.premiumPct) <= MAX_PREMIUM_PCT;
-  const gateApproves = gate.decision === "approve";
+  const rulesAllow = rulesAllowBuying(gate);
   const strong = token.bearing === "bull" && token.phase != null && STRONG_PHASES.includes(token.phase);
   const holdNames = calendar.holdingFor.map((h) => h.event).join(", ");
 
@@ -237,7 +254,7 @@ export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict 
       detail: token.premiumPct == null ? "no peg reading" : `${pct(token.premiumPct)} vs ${session.anchored ? "the real share" : "the last reference price"} (limit ±${MAX_PREMIUM_PCT}%)`,
     },
     { label: "Calendar is clear", ok: !calendar.holdingNow, detail: calendar.holdingNow ? `holding for ${holdNames}` : "no hold" },
-    { label: "Gate approves", ok: gateApproves, detail: gate.decision ?? "unknown" },
+    { label: "Rules allow buying", ok: rulesAllow, detail: gateDetail(gate) },
     { label: "Trend is strong", ok: strong, detail: token.phase ? `${token.phase} · ${token.bearing ?? "?"}` : "no phase" },
   ];
 
@@ -255,8 +272,8 @@ export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict 
     };
   }
   if (calendar.holdingNow) return { verdict: "WAIT", reason: `Calendar hold: ${holdNames}. Waiting for the print to settle.`, checks };
-  if (!gateApproves) return { verdict: "WAIT", reason: `The gate says ${gate.decision ?? "nothing yet"}. Waiting.`, checks };
-  if (strong) return { verdict: "HUNT", reason: `Real, fairly priced (${pct(token.premiumPct!)}), gate approves, ${token.phase}. Paw up.`, shared: "Real, fairly priced, gate approves, strong trend. Paw up.", checks };
+  if (!rulesAllow) return { verdict: "WAIT", reason: `The gate says ${gate.decision ?? "nothing yet"}. Waiting.`, checks };
+  if (strong) return { verdict: "HUNT", reason: `Real, fairly priced (${pct(token.premiumPct!)}), rules allow it, ${token.phase}. Paw up.`, shared: "Real, fairly priced, rules allow it, strong trend. Paw up.", checks };
   return { verdict: "WATCH", reason: `Allowed, but ${token.phase ?? "the trend"} isn't strong enough yet. Watching.`, shared: "Allowed, but the trend isn't strong enough yet. Watching.", checks };
 }
 
@@ -272,7 +289,7 @@ export function referenceLabel(state: string | null): string {
  * no depth score. It trades 24/7 with nothing to wait for but the calendar and gate. */
 export function satelliteVerdictFor(token: LiveToken, engine: EngineState): TokenVerdict {
   const { gate, calendar } = engine;
-  const gateApproves = gate.decision === "approve";
+  const rulesAllow = rulesAllowBuying(gate);
   const strong = token.bearing === "bull" && token.phase != null && STRONG_PHASES.includes(token.phase);
   const holdNames = calendar.holdingFor.map((h) => h.event).join(", ");
   const checks: TokenVerdict["checks"] = [
@@ -281,14 +298,14 @@ export function satelliteVerdictFor(token: LiveToken, engine: EngineState): Toke
     { label: "Fair price provable", ok: null, detail: "not applicable: no real share behind it" },
     { label: "Price is fair", ok: null, detail: "not applicable: it is the asset, not a wrapper" },
     { label: "Calendar is clear", ok: !calendar.holdingNow, detail: calendar.holdingNow ? `holding for ${holdNames}` : "no hold" },
-    { label: "Gate approves", ok: gateApproves, detail: gate.decision ?? "unknown" },
+    { label: "Rules allow buying", ok: rulesAllow, detail: gateDetail(gate) },
     { label: "Trend is strong", ok: strong, detail: token.phase ? `${token.phase} · ${token.bearing ?? "?"}` : "no phase" },
   ];
   if (engine.stale) return { verdict: "REFUSE", reason: "The engine's reading is stale. Not eating old food.", checks };
   if (token.tradable !== true) return { verdict: "REFUSE", reason: `Rated ${token.rating ?? "unknown"}. No proof it can be traded cleanly.`, solo: true, checks };
   if (calendar.holdingNow) return { verdict: "WAIT", reason: `Calendar hold: ${holdNames}. Waiting for the print to settle.`, checks };
-  if (!gateApproves) return { verdict: "WAIT", reason: `The gate says ${gate.decision ?? "nothing yet"}. Waiting.`, checks };
-  if (strong) return { verdict: "HUNT", reason: `Tradable, gate approves, ${token.phase}. Paw up.`, shared: "Tradable, gate approves, strong trend. Paw up.", checks };
+  if (!rulesAllow) return { verdict: "WAIT", reason: `The gate says ${gate.decision ?? "nothing yet"}. Waiting.`, checks };
+  if (strong) return { verdict: "HUNT", reason: `Tradable, rules allow it, ${token.phase}. Paw up.`, shared: "Tradable, rules allow it, strong trend. Paw up.", checks };
   return { verdict: "WATCH", reason: `Allowed, but ${token.phase ?? "the trend"} isn't strong enough yet. Watching.`, shared: "Allowed, but the trend isn't strong enough yet. Watching.", checks };
 }
 
@@ -303,7 +320,11 @@ export function catRead(engine: EngineState, verdicts: Record<string, TokenVerdi
   const all = Object.entries(verdicts);
   const of = (v: LiveVerdict) => all.filter(([, t]) => t.verdict === v);
   const hunts = of("HUNT");
-  if (hunts.length) return { state: "stalking", headline: "HUNT", thought: `${hunts.map(([s]) => s).join(", ")}: real, fair and allowed. Paw up.` };
+  if (hunts.length) {
+    // Paw up means "this is good food", not "we are buying": say so when our own bowl is full.
+    const full = engine.gate.decision === "hold" ? " Our own book is already on target." : "";
+    return { state: "stalking", headline: "HUNT", thought: `${hunts.map(([s]) => s).join(", ")}: real, fair and allowed. Paw up.${full}` };
+  }
   const refuses = of("REFUSE");
   if (refuses.length) {
     const thought = refuses.length === all.length ? refuses[0][1].reason : `Refusing ${refuses.map(([s]) => s).join(", ")}. ${refuses[0][1].reason}`;
