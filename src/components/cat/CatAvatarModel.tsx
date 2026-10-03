@@ -190,14 +190,19 @@ export function CatAvatarModel({ url, state, mood, evolutionStage = "Hunter" }: 
     const box = new THREE.Box3().setFromObject(scene);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    // Fit by what the camera actually sees: width and height. Depth is excluded, because a
+    // full-body model that is deep front-to-back would otherwise be shrunk to fit a dimension
+    // that points away from the viewer, and end up small in the frame.
+    const maxDim = Math.max(size.x, size.y) || 1;
     // Deliberately leaves headroom in the camera frame (see CatAvatar3D's
     // camera distance/fov) rather than filling it edge-to-edge — a model
     // sized to just barely fit gets clipped the moment it floats at all.
     // The evolution-stage multiplier is applied on top, within that
     // headroom, so an Apex/Legendary cat visibly reads as bigger without
     // needing a separate model per stage.
-    const targetSize = 1.3 * SIZE_BY_EVOLUTION_STAGE[evolutionStage];
+    // The frame is ~2.25 units tall at this camera distance/fov; cap below that so the
+    // largest stage still clears the edges while it bobs.
+    const targetSize = Math.min(2.0, 1.6 * SIZE_BY_EVOLUTION_STAGE[evolutionStage]);
     const scale = targetSize / maxDim;
     scene.scale.setScalar(scale);
     scene.position.set(-center.x * scale, -center.y * scale, -center.z * scale);

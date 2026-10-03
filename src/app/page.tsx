@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { CatAvatar3D as CatAvatar } from "@/components/cat/CatAvatar3D";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 import { useEngine } from "@/lib/hooks/useEngine";
-import { catSize, useViewportWidth } from "@/lib/hooks/useViewportWidth";
 import { catRead, satelliteVerdictFor, verdictFor, type TokenVerdict } from "@/lib/live/engine";
 
 const FEATURES = [
@@ -36,9 +35,6 @@ export default function LandingPage() {
     for (const t of engine.satellite) satellite[t.symbol] = satelliteVerdictFor(t, engine);
     return catRead(engine, verdicts, satellite);
   })();
-  const vw = useViewportWidth();
-  // one column below lg (page padding + card padding); two columns above it
-  const size = vw < 1024 ? catSize(vw, 440, 112) : catSize(Math.min(vw, 1152) / 2, 520, 88);
 
   function watchTheHunt() {
     loadDemo();
@@ -110,11 +106,11 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="chunky-border-acid bg-ink-raised rounded-2xl px-4 pt-9 pb-4 flex flex-col items-center relative">
+        <div className="chunky-border-acid bg-ink-raised rounded-2xl px-6 pt-10 pb-6 flex flex-col items-center gap-3 relative">
           <span className="absolute top-3 left-4 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             <span className="text-acid">●</span> live · the engine&apos;s verdict right now
           </span>
-          <CatAvatar state={read?.state ?? "curious"} mood={40} size={size} evolutionStage="Hunter" hunger={0} showSvgWhileLoading={false} />
+          <CatAvatar state={read?.state ?? "curious"} mood={40} size={260} evolutionStage="Hunter" hunger={0} showSvgWhileLoading={false} />
           <p className="font-mono text-xs text-center text-cream/85 leading-relaxed max-w-md min-h-[2.5rem]">
             {read ? (
               <>
