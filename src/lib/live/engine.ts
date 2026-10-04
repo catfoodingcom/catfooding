@@ -209,6 +209,9 @@ export interface TokenVerdict {
   reason: string;
   /** The same reason without this token's own numbers, for when several tokens share it. */
   shared?: string;
+  /** Set when the refusal is about price (the token is priced too far from the real share),
+   * as opposed to tradability or data: the cat pokes the coin instead of turning away. */
+  priceRefusal?: boolean;
   /** A problem with this token specifically: always shown on its own, never folded into a group. */
   solo?: boolean;
   /** Every check, in order, pass or fail. */
@@ -261,7 +264,7 @@ export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict 
   if (engine.stale) return { verdict: "REFUSE", reason: "The engine's reading is stale. Not eating old food.", checks };
   if (token.tradable === false) return { verdict: "REFUSE", reason: `Oracle rates it ${token.rating ?? "untradable"}. Too thin to eat.`, solo: true, checks };
   if (premiumOk === false)
-    return { verdict: "REFUSE", reason: `Priced ${pct(token.premiumPct!)} away from the real share. Not fair food.`, solo: true, checks };
+    return { verdict: "REFUSE", reason: `Priced ${pct(token.premiumPct!)} away from the real share. Not fair food.`, solo: true, priceRefusal: true, checks };
   if (token.tradable == null || premiumOk == null) return { verdict: "REFUSE", reason: "A check is missing a reading. No proof, no bite.", solo: true, checks };
   if (!session.anchored) {
     const next = session.hoursToNextOpen != null ? ` Next live reference in ${session.hoursToNextOpen.toFixed(1)}h.` : "";
@@ -309,8 +312,16 @@ export function satelliteVerdictFor(token: LiveToken, engine: EngineState): Toke
   return { verdict: "WATCH", reason: `Allowed, but ${token.phase ?? "the trend"} isn't strong enough yet. Watching.`, shared: "Allowed, but the trend isn't strong enough yet. Watching.", checks };
 }
 
+/** Which expression the cat shows. Mirrors the clips in components/cat/CatClip.tsx. */
+export type LivePose = "beckoning" | "hunt" | "confirmed" | "refuse" | "suspicious" | "sleep" | "waiting" | "watch";
+
+/** How long after a fill lands the cat keeps ringing its bell. The fills feed refreshes every
+ * 15 minutes, so a shorter window could pass before the fill is even seen. */
+export const CONFIRMED_WINDOW_MIN = 45;
+
 export interface CatRead {
   state: CatBehaviorState;
+  pose: LivePose;
   thought: string;
   headline: LiveVerdict;
 }
@@ -320,6 +331,18 @@ export interface CatRead {
  * The thought says which kind, because the two are judged differently: a stock passed the
  * fair-price check; a satellite asset has none to pass. */
 export function catRead(engine: EngineState, verdicts: Record<string, TokenVerdict>, satelliteVerdicts: Record<string, TokenVerdict> = {}): CatRead {
+  const read = verdictRead(engine, verdicts, satelliteVerdicts);
+  // A fill that has just landed on-chain is the freshest fact there is: the cat rings its bell.
+  // Time is measured from when the engine state was built, so this stays a pure function.
+  const now = Date.parse(engine.fetchedAt);
+  const fill = (engine.activity ?? []).find((a) => a.category === "TRADE");
+  if (fill && Number.isFinite(now) && now - fill.timestamp >= 0 && now - fill.timestamp <= CONFIRMED_WINDOW_MIN * 60_000) {
+    return { ...read, state: "celebrating", pose: "confirmed", thought: `Confirmed on-chain. ${fill.message}` };
+  }
+  return read;
+}
+
+function verdictRead(engine: EngineState, verdicts: Record<string, TokenVerdict>, satelliteVerdicts: Record<string, TokenVerdict>): CatRead {
   const stocks = Object.entries(verdicts);
   const sats = Object.entries(satelliteVerdicts);
   const all = [...stocks, ...sats];
@@ -341,18 +364,22 @@ export function catRead(engine: EngineState, verdicts: Record<string, TokenVerdi
     }
     // Paw up means "this is good food", not "we are buying": say so when our own bowl is full.
     if (engine.gate.decision === "hold") parts.push("Our own book is already on target.");
-    return { state: "stalking", headline: "HUNT", thought: parts.join(" ") };
+    // Paw up = worth buying. The crouch is kept for when our own gate has approved a staged buy:
+    // the engine is about to act, not just pointing.
+    const acting = engine.gate.decision === "approve" && (engine.book?.plan.length ?? 0) > 0;
+    return { state: "stalking", pose: acting ? "hunt" : "beckoning", headline: "HUNT", thought: parts.join(" ") };
   }
 
   const refuses = all.filter(([, t]) => t.verdict === "REFUSE");
   if (refuses.length) {
     const thought = refuses.length === all.length ? refuses[0][1].reason : `Refusing ${refuses.map(([s]) => s).join(", ")}. ${refuses[0][1].reason}`;
-    return { state: "nervous", headline: "REFUSE", thought };
+    // Mispriced food gets the suspicious poke; anything else (thin, stale, unproven) the turn-away.
+    return { state: "nervous", pose: refuses[0][1].priceRefusal ? "suspicious" : "refuse", headline: "REFUSE", thought };
   }
   const waits = all.filter(([, t]) => t.verdict === "WAIT");
-  if (waits.length) return { state: "watching", headline: "WAIT", thought: waits[0][1].reason };
-  if (!all.length) return { state: "curious", headline: "WATCH", thought: "Can't reach the engine. Not guessing." };
-  return { state: "idle", headline: "WATCH", thought: "Everything's allowed, nothing's strong. Watching." };
+  if (waits.length) return { state: "watching", pose: "waiting", headline: "WAIT", thought: waits[0][1].reason };
+  if (!all.length) return { state: "curious", pose: "watch", headline: "WATCH", thought: "Can't reach the engine. Not guessing." };
+  return { state: "idle", pose: "watch", headline: "WATCH", thought: "Everything's allowed, nothing's strong. Watching." };
 }
 
 export interface LiveVital {

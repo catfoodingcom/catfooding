@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 import { useRequireCat } from "@/lib/hooks/useRequireCat";
-// 3D GLB avatar. NOTE: the GLBs use Draco + EXT_texture_webp, which need decoders
-// that local dev may lack → the model can render white on a hard refresh locally.
-// It renders correctly on the Vercel deploy. Keep the 3D — it's the intended look.
-import { CatAvatar3D as CatAvatar } from "@/components/cat/CatAvatar3D";
 import { CatThoughtBubble } from "@/components/cat/CatThoughtBubble";
+import { POSE_BY_STATE } from "@/components/cat/CatClip";
+import { CatStage, SHOWREEL } from "@/components/cat/CatStage";
 import { CatStats, MoodDisplay } from "@/components/cat/CatStats";
 import { XPBar } from "@/components/cat/XPBar";
 import { EvolutionProgress } from "@/components/cat/EvolutionProgress";
@@ -53,6 +51,10 @@ export default function CatRoomPage() {
   const mode = useCatFoodStore((s) => s.mode);
   const setMode = useCatFoodStore((s) => s.setMode);
   const live = mode === "LIVE";
+  // Showreel: a visitor-triggered preview of every expression. While it runs the cat is
+  // NOT showing the engine's verdict, and the caption says so.
+  const [reel, setReel] = useState<number | null>(null);
+  const nextInReel = useCallback(() => setReel((i) => (i == null || i + 1 >= SHOWREEL.length ? null : i + 1)), []);
   const { engine, error: engineError } = useEngine(live);
 
   // Live mode: the engine's verdicts drive the cat instead of the simulator.
@@ -137,6 +139,16 @@ export default function CatRoomPage() {
                       </button>
                     ))}
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    title={reel == null ? "Preview every expression" : "Stop the preview"}
+                    aria-pressed={reel != null}
+                    className={`font-mono text-[10px] uppercase border-border h-8 ${reel != null ? "text-acid border-acid" : ""}`}
+                    onClick={() => setReel((i) => (i == null ? 0 : null))}
+                  >
+                    {reel == null ? "▶ Poses" : "■ Stop"}
+                  </Button>
                   {!live && (
                     <>
                       <Button size="icon" variant="outline" className="border-border h-8 w-8" onClick={() => (isRunning ? pause() : start())}>
@@ -156,9 +168,21 @@ export default function CatRoomPage() {
               </div>
 
               <div className="flex flex-col items-center py-4">
-                <CatAvatar state={read?.state ?? (live ? "curious" : cat.currentState)} mood={cat.mood} size={260} evolutionStage={live ? "Hunter" : cat.evolutionStage} hunger={live ? 0 : cat.hunger} showSvgWhileLoading={false} />
+                {reel != null ? (
+                  <CatStage pose={SHOWREEL[reel].pose} onDone={nextInReel} />
+                ) : (
+                  <CatStage pose={live ? (read?.pose ?? "watch") : POSE_BY_STATE[cat.currentState]} />
+                )}
                 <div className="mt-3 w-full max-w-sm">
-                  <CatThoughtBubble thought={live ? (read?.thought ?? (engineError ? "Can't reach the engine. Not guessing." : "Sniffing the engine…")) : cat.currentThought} />
+                  <CatThoughtBubble
+                    thought={
+                      reel != null
+                        ? `Preview ${reel + 1} of ${SHOWREEL.length} · ${SHOWREEL[reel].label}`
+                        : live
+                          ? (read?.thought ?? (engineError ? "Can't reach the engine. Not guessing." : "Sniffing the engine…"))
+                          : cat.currentThought
+                    }
+                  />
                 </div>
               </div>
 

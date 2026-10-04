@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { CatAvatar3D as CatAvatar } from "@/components/cat/CatAvatar3D";
+import { CatStage } from "@/components/cat/CatStage";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 import { useEngine } from "@/lib/hooks/useEngine";
 import { catRead, satelliteVerdictFor, verdictFor, type TokenVerdict } from "@/lib/live/engine";
@@ -110,7 +110,7 @@ export default function LandingPage() {
           <span className="absolute top-3 left-4 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             <span className="text-acid">●</span> live · the engine&apos;s verdict right now
           </span>
-          <CatAvatar state={read?.state ?? "curious"} mood={40} size={260} evolutionStage="Hunter" hunger={0} showSvgWhileLoading={false} />
+          <CatStage pose={read?.pose ?? "watch"} />
           <p className="font-mono text-xs text-center text-cream/85 leading-relaxed max-w-md min-h-[2.5rem]">
             {read ? (
               <>

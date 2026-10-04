@@ -12,6 +12,8 @@ export type SimSpeed = "NORMAL" | "FAST";
 /** DEMO = the mock market simulator drives the cat. LIVE = the CoAgentic engine
  * feeds do (see lib/live/engine.ts); the simulator is held, not slept. */
 export type RoomMode = "DEMO" | "LIVE";
+/** How the cat is drawn: the video clips (default) or the 3D models. */
+export type CatStyle = "video" | "3d";
 const TICK_INTERVAL_MS: Record<SimSpeed, number> = { NORMAL: 6000, FAST: 1500 };
 
 // The market provider is a stateful engine, not plain data — kept outside
@@ -25,6 +27,8 @@ interface CatFoodStore {
   isRunning: boolean;
   speed: SimSpeed;
   mode: RoomMode;
+  catStyle: CatStyle;
+  setCatStyle: (style: CatStyle) => void;
   /** False until zustand/persist has finished reading localStorage. Pages
    * that redirect-if-no-cat must wait for this — otherwise a hard reload
    * or direct URL visit bounces a real, saved cat back to /adopt because
@@ -63,6 +67,8 @@ export const useCatFoodStore = create<CatFoodStore>()(
   isRunning: false,
   speed: "NORMAL",
   mode: "DEMO",
+  catStyle: "video",
+  setCatStyle: (catStyle) => set({ catStyle }),
   hasHydrated: false,
   setHasHydrated: (value) => set({ hasHydrated: value }),
 
@@ -286,7 +292,7 @@ export const useCatFoodStore = create<CatFoodStore>()(
     {
       name: "catfood-sim",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ sim: state.sim, speed: state.speed, mode: state.mode }),
+      partialize: (state) => ({ sim: state.sim, speed: state.speed, mode: state.mode, catStyle: state.catStyle }),
       onRehydrateStorage: () => (state, error) => {
         if (error) console.error("Failed to rehydrate CATFOOD state:", error);
         // lastRefusal is a transient demo beat — don't carry a stale REFUSED card

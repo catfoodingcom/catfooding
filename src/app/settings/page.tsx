@@ -7,6 +7,7 @@ import { useRequireCat } from "@/lib/hooks/useRequireCat";
 import { AutonomySelector } from "@/components/settings/AutonomySelector";
 import { TrainingPanel } from "@/components/settings/TrainingPanel";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
+import { CatStyleSelector } from "@/components/settings/CatStyleSelector";
 import { Slider } from "@/components/ui/slider";
 
 export default function SettingsPage() {
@@ -40,6 +41,11 @@ export default function SettingsPage() {
         <section className="chunky-border bg-ink-raised rounded-2xl p-4 space-y-3">
           <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Colour theme</h2>
           <ThemeSelector />
+        </section>
+
+        <section className="chunky-border bg-ink-raised rounded-2xl p-4 space-y-3">
+          <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Cat style</h2>
+          <CatStyleSelector />
         </section>
 
         <section className="chunky-border bg-ink-raised rounded-2xl p-4 space-y-3">
