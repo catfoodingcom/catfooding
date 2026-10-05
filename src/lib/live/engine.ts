@@ -49,6 +49,34 @@ export interface LiveGate {
   council: LiveCouncil | null;
 }
 
+/** A written technical read: a Bull / Bear / Risk deliberation over one asset's price chart.
+ * Two assets have one: ETH (daily) and SPCXx (weekly, over real daily candles). The other
+ * stock tokens get a trend phase only. */
+export interface LiveTechnical {
+  asof: string | null;
+  symbol: string;
+  cadence: "daily" | "weekly";
+  /** What the chart's points are, in plain words. */
+  seriesNote: string;
+  /** Paper result of following this signal vs simply holding, where the engine tracks it. */
+  track: { since: string | null; signalPct: number; holdPct: number } | null;
+  signal: string | null;
+  confidence: string | null;
+  /** The level that would change the view, as the Council wrote it, and as a number. */
+  oneLevel: string | null;
+  flipLevel: number | null;
+  regime: string | null;
+  bull: string | null;
+  bear: string | null;
+  risk: string | null;
+  synthesis: string | null;
+  /** The recent range the rule trades inside. */
+  box: { hi: number; lo: number } | null;
+  /** Price over time, each point carrying the verdict that was in force that day. */
+  series: { date: string; price: number; signal: string | null }[];
+  timeframes: { name: string; phase: string | null; bearing: string | null; e20: number | null; e50: number | null }[];
+}
+
 export interface LiveHypothesis {
   posture: string | null;
   confidence: string | null;
@@ -189,6 +217,7 @@ export interface EngineState {
     rule: string | null;
   };
   sentinel: LiveSentinel | null;
+  technical: LiveTechnical[];
   tokens: LiveToken[];
   /** ETH and OKB: no real share behind them, so no peg or fair-price reading. */
   satellite: LiveToken[];

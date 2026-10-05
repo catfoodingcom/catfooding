@@ -8,7 +8,7 @@ const day = (iso: string | null) => (iso ? `${iso.slice(0, 10)}${iso.length > 10
 const shortHash = (h: string | null) => (h ? `${h.slice(0, 10)}…${h.slice(-6)}` : null);
 
 /** A fact tile that opens the reasoning behind it. */
-function TileDialog({ tile, title, description, children }: { tile: ReactNode; title: string; description: string; children: ReactNode }) {
+export function TileDialog({ tile, title, description, children }: { tile: ReactNode; title: string; description: string; children: ReactNode }) {
   return (
     <Dialog>
       <DialogTrigger render={<button type="button" className="text-left rounded-lg hover:ring-1 hover:ring-acid/50 focus-visible:ring-1 focus-visible:ring-acid outline-none" />}>
@@ -25,7 +25,7 @@ function TileDialog({ tile, title, description, children }: { tile: ReactNode; t
   );
 }
 
-function Voice({ label, color, text, open = false }: { label: string; color: string; text: string | null; open?: boolean }) {
+export function Voice({ label, color, text, open = false }: { label: string; color: string; text: string | null; open?: boolean }) {
   if (!text) return null;
   return (
     <details open={open} className="rounded-lg border border-border bg-ink">

@@ -10,6 +10,7 @@ import {
   type LiveActivity,
   type LiveRecord,
   type LiveRisk,
+  type LiveTechnical,
   type LiveToken,
 } from "@/lib/live/engine";
 
@@ -139,6 +140,100 @@ function buildRecord(trades: Raw | null, calendar: Raw | null, sentinel: Raw | n
   return { since, items, xp: items.reduce((sum, i) => sum + i.count * i.xpEach, 0) };
 }
 
+// The view-changing level, as a number. The Council writes it in prose, sometimes naming a
+// pivot first and the decisive level after ("149.45 is the pivot but the decisive one is a daily
+// CLOSE below 139.50"), so prefer an explicit "close below/above N" over the first number.
+function flipLevel(text: unknown): number | null {
+  const t = String(text ?? "");
+  const m = /close\s+(?:below|above|under|over)\s+\$?([0-9][0-9,]*(?:\.[0-9]+)?)/i.exec(t) ?? /^\s*\$?([0-9][0-9,]*(?:\.[0-9]+)?)/.exec(t);
+  return m ? Number(m[1].replace(/,/g, "")) : null;
+}
+
+// The daily ETH report and the multi-timeframe phases. Only the published read is passed on:
+// the report's own position fields describe a separate paper agent, not the Steward book.
+function buildEthTechnical(reports: Raw | null, mtf: Raw | null): LiveTechnical | null {
+  const list: Raw[] = Array.isArray(reports?.reports) ? reports.reports : [];
+  if (!list.length) return null;
+  const sorted = [...list].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  const latest = sorted[sorted.length - 1];
+  const council: Raw = latest.council ?? {};
+  const box: Raw | undefined = latest.decision?.box;
+  return {
+    asof: str(latest.ts),
+    symbol: "ETH",
+    cadence: "daily",
+    seriesNote: "price at each daily report",
+    track: null,
+    signal: str(council.signal),
+    confidence: str(council.confidence),
+    oneLevel: str(council.the_one_level),
+    flipLevel: flipLevel(council.the_one_level),
+    regime: str(latest.decision?.regime),
+    bull: str(council.bull),
+    bear: str(council.bear),
+    risk: str(council.risk),
+    synthesis: str(council.synthesis),
+    box: box && num(box.hi) != null && num(box.lo) != null ? { hi: box.hi, lo: box.lo } : null,
+    series: sorted
+      .filter((r) => num(r.eth_price) != null)
+      .slice(-90)
+      .map((r) => ({ date: String(r.id), price: r.eth_price, signal: str(r.council?.signal) })),
+    timeframes: (Array.isArray(mtf?.tfs) ? (mtf.tfs as Raw[]) : []).map((t) => ({
+      name: String(t.name),
+      phase: str(t.phase),
+      bearing: str(t.bearing),
+      e20: num(t.e20),
+      e50: num(t.e50),
+    })),
+  };
+}
+
+// The SPCXx research track: real daily candles and a weekly Council deliberation over them.
+function buildSpcxTechnical(spcx: Raw | null, tei: Raw | null): LiveTechnical | null {
+  const delib: Raw | undefined = spcx?.delib;
+  const bars: Raw[] = Array.isArray(spcx?.bars) ? spcx.bars : [];
+  if (!delib?.council || bars.length < 2) return null;
+  const council: Raw = delib.council;
+  // each weekly verdict stays in force until the next one
+  const history: Raw[] = (Array.isArray(spcx?.history) ? [...(spcx.history as Raw[])] : []).sort((x, y) => String(x.date).localeCompare(String(y.date)));
+  const verdictOn = (date: string) => {
+    let current: string | null = null;
+    for (const h of history) if (String(h.date) <= date) current = str(h.signal);
+    return current;
+  };
+  const phase: Raw = tei?.nav?.phases?.SPCXx ?? {};
+  const track: Raw | undefined = spcx?.track;
+  const range: Raw | undefined = spcx?.rangeBox;
+  return {
+    asof: str(delib.ts),
+    symbol: "SPCXx",
+    cadence: "weekly",
+    seriesNote: "daily close",
+    track:
+      track && num(track.strategy_return_pct) != null && num(track.buyhold_return_pct) != null
+        ? { since: str(track.start), signalPct: track.strategy_return_pct, holdPct: track.buyhold_return_pct }
+        : null,
+    signal: str(council.signal),
+    confidence: str(council.confidence),
+    oneLevel: str(council.the_one_level),
+    flipLevel: flipLevel(council.the_one_level),
+    regime: str(delib.trend?.ema_alignment),
+    bull: str(council.bull),
+    bear: str(council.bear),
+    risk: str(council.risk),
+    synthesis: str(council.synthesis),
+    box: num(range?.hi) != null && num(range?.lo) != null ? { hi: range!.hi, lo: range!.lo } : null,
+    series: bars
+      .filter((bar) => num(bar.close) != null && num(bar.time) != null)
+      .slice(-120)
+      .map((bar) => {
+        const date = new Date(bar.time * 1000).toISOString().slice(0, 10);
+        return { date, price: Math.round(bar.close * 100) / 100, signal: verdictOn(date) };
+      }),
+    timeframes: str(phase.phase) ? [{ name: "Daily", phase: str(phase.phase), bearing: str(phase.bearing), e20: num(delib.indicators?.ema20), e50: num(delib.indicators?.ema50) }] : [],
+  };
+}
+
 function buildRisk(tei: Raw | null, swaps: Raw[]): LiveRisk | null {
   const packet: Raw | undefined = tei?.verdict?.packet;
   if (!packet) return null;
@@ -209,12 +304,15 @@ function buildActivity(tei: Raw | null, calendar: Raw | null, sentinel: Raw | nu
 
 export async function GET() {
   const failures: string[] = [];
-  const [tei, calendar, sentinel, book, trades] = await Promise.all([
+  const [tei, calendar, sentinel, book, trades, reports, mtf, spcx] = await Promise.all([
     feed("tei", failures),
     feed("calendar", failures),
     feed("sentinel", failures),
     feed("book", failures),
     feed("trades", failures),
+    feed("reports", failures),
+    feed("mtf", failures),
+    feed("spcx", failures),
   ]);
 
   const asof = str(tei?.asof);
@@ -331,6 +429,7 @@ export async function GET() {
           })),
         }
       : null,
+    technical: [buildEthTechnical(reports, mtf), buildSpcxTechnical(spcx, tei)].filter((t): t is LiveTechnical => t != null),
     tokens,
     satellite,
     book: buildBook(book, tei, swaps),

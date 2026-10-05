@@ -3,6 +3,7 @@
 import { referenceLabel, type EngineState, type LiveToken, type LiveVerdict, type TokenVerdict } from "@/lib/live/engine";
 import { MacroCalendar } from "./MacroCalendar";
 import { GateReasoning, MacroReasoning } from "./Reasoning";
+import { TechnicalReasoning } from "./Technical";
 
 const VERDICT_STYLE: Record<LiveVerdict, { icon: string; chip: string }> = {
   REFUSE: { icon: "🙅", chip: "border-[#ff5d5d]/60 bg-[#ff5d5d]/10 text-[#ff9d9d]" },
@@ -32,7 +33,7 @@ export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePa
     );
   }
 
-  const { gate, session, calendar, sentinel } = engine;
+  const { gate, session, calendar, sentinel, technical } = engine;
   return (
     <div className="chunky-border-acid bg-ink-raised rounded-2xl p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -40,7 +41,7 @@ export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePa
         <MacroCalendar calendar={calendar} />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono text-[10px]">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 font-mono text-[10px]">
         <GateReasoning gate={gate} tile={<Fact label="Gate · our book" value={gate.decision === "hold" ? "on target" : (gate.decision ?? "unknown")} sub={gate.council?.stance ? `Council: ${gate.council.stance}` : ""} more />} />
         <Fact label="Tokens" value="trading 24/7" sub="X Layer, always open" />
         <Fact
@@ -52,6 +53,17 @@ export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePa
         <MacroReasoning
           sentinel={sentinel}
           tile={<Fact label="Macro view" value={sentinel?.posture ?? "unknown"} sub={sentinel?.confidence ? `${sentinel.confidence} confidence` : ""} more={!!sentinel} />}
+        />
+        <TechnicalReasoning
+          technical={technical}
+          tile={
+            <Fact
+              label="Technical view"
+              value={technical[0] ? `${technical[0].symbol} ${technical[0].signal ?? "?"}` : "unknown"}
+              sub={technical[1] ? `${technical[1].symbol} ${technical[1].signal ?? "?"}` : ""}
+              more={technical.length > 0}
+            />
+          }
         />
       </div>
 
