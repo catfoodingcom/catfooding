@@ -8,6 +8,7 @@ import { CatStage } from "@/components/cat/CatStage";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 import { useEngine } from "@/lib/hooks/useEngine";
 import { catRead, satelliteVerdictFor, verdictFor, type TokenVerdict } from "@/lib/live/engine";
+import { Wordmark } from "@/components/brand/Wordmark";
 
 const FEATURES = [
   { icon: "🐾", label: "Autonomous hunting", desc: "Scans a live token universe every tick and decides for itself." },
@@ -54,7 +55,7 @@ export default function LandingPage() {
 
       <header className="relative z-10 flex items-center justify-between px-6 py-5 max-w-6xl mx-auto">
         <span className="font-display font-bold text-lg tracking-tight">
-          CAT<span className="text-acid">FOODING</span>
+          <Wordmark markHeight={20} />
         </span>
         <span className="font-mono text-[10px] uppercase tracking-widest text-pink border border-pink/50 rounded-full px-3 py-1">
           Beta · Live + Demo

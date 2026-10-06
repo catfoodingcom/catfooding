@@ -24,6 +24,7 @@ import { LiveRiskPanel } from "@/components/live/LiveRiskPanel";
 import { useEngine } from "@/lib/hooks/useEngine";
 import { catRead, liveVitals, satelliteVerdictFor, verdictFor, type TokenVerdict } from "@/lib/live/engine";
 import { LiveLevel, LiveVitals, TrackRecord, liveStage } from "@/components/live/LiveVitals";
+import { Wordmark } from "@/components/brand/Wordmark";
 
 function RoomItem({ icon, label, value, hint }: { icon: string; label: string; value: string; hint: string }) {
   return (
@@ -90,7 +91,7 @@ export default function CatRoomPage() {
         {/* top nav */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/" className="font-display font-bold tracking-tight">
-            CAT<span className="text-acid">FOODING</span>
+            <Wordmark markHeight={18} />
           </Link>
           <div className="flex items-center gap-2">
             {!live && <MarketRegimeIndicator regime={market.regime} />}
