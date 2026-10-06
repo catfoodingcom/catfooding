@@ -38,7 +38,7 @@ export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePa
     <div className="chunky-border-acid bg-ink-raised rounded-2xl p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-mono text-xs uppercase tracking-wider text-acid">Live engine · CoAgentic Steward</h2>
-        <MacroCalendar calendar={calendar} />
+        <MacroCalendar calendar={calendar} asOf={engine.fetchedAt} />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 font-mono text-[10px]">
