@@ -200,6 +200,33 @@ export interface LiveActivity {
   xpChange?: number;
 }
 
+export type PulseStatus = "ok" | "running" | "overdue" | "failed" | "unknown";
+
+/** One scheduled job behind the engine: when it last fired and when it is next due. */
+export interface LivePulseJob {
+  id: string;
+  label: string;
+  note: string | null;
+  everySec: number;
+  lastRun: string | null;
+  nextRun: string | null;
+  status: PulseStatus;
+}
+
+export interface LivePulseGroup {
+  id: string;
+  name: string;
+  status: PulseStatus;
+  /** The job in this group that is due soonest. */
+  nextJob: string | null;
+  jobs: LivePulseJob[];
+}
+
+export interface LivePulse {
+  asOf: string;
+  groups: LivePulseGroup[];
+}
+
 export interface EngineState {
   ok: boolean;
   fetchedAt: string;
@@ -218,6 +245,8 @@ export interface EngineState {
   };
   sentinel: LiveSentinel | null;
   technical: LiveTechnical[];
+  /** Heartbeat of the scheduled jobs that keep every reading above fresh. */
+  pulse: LivePulse | null;
   tokens: LiveToken[];
   /** ETH and OKB: no real share behind them, so no peg or fair-price reading. */
   satellite: LiveToken[];

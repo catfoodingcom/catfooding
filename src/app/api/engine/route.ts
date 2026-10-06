@@ -10,7 +10,9 @@ import {
   type LiveActivity,
   type LiveRecord,
   type LiveRisk,
+  type LivePulse,
   type LiveTechnical,
+  type PulseStatus,
   type LiveToken,
 } from "@/lib/live/engine";
 
@@ -302,9 +304,34 @@ function buildActivity(tei: Raw | null, calendar: Raw | null, sentinel: Raw | nu
   return out.sort((a, b) => b.timestamp - a.timestamp).slice(0, 40);
 }
 
+const PULSE_STATUS: PulseStatus[] = ["ok", "running", "overdue", "failed", "unknown"];
+const pulseStatus = (v: unknown): PulseStatus => (PULSE_STATUS.includes(v as PulseStatus) ? (v as PulseStatus) : "unknown");
+
+function buildPulse(raw: Raw | null): LivePulse | null {
+  if (!raw?.ok || !Array.isArray(raw.groups) || typeof raw.asOf !== "string") return null;
+  return {
+    asOf: raw.asOf,
+    groups: (raw.groups as Raw[]).map((g) => ({
+      id: String(g.id),
+      name: String(g.name),
+      status: pulseStatus(g.status),
+      nextJob: typeof g.nextJob === "string" ? g.nextJob : null,
+      jobs: (Array.isArray(g.jobs) ? (g.jobs as Raw[]) : []).map((j) => ({
+        id: String(j.id),
+        label: String(j.label),
+        note: typeof j.note === "string" ? j.note : null,
+        everySec: Number(j.everySec) || 0,
+        lastRun: typeof j.lastRun === "string" ? j.lastRun : null,
+        nextRun: typeof j.nextRun === "string" ? j.nextRun : null,
+        status: pulseStatus(j.status),
+      })),
+    })),
+  };
+}
+
 export async function GET() {
   const failures: string[] = [];
-  const [tei, calendar, sentinel, book, trades, reports, mtf, spcx] = await Promise.all([
+  const [tei, calendar, sentinel, book, trades, reports, mtf, spcx, pulse] = await Promise.all([
     feed("tei", failures),
     feed("calendar", failures),
     feed("sentinel", failures),
@@ -313,6 +340,7 @@ export async function GET() {
     feed("reports", failures),
     feed("mtf", failures),
     feed("spcx", failures),
+    feed("pulse", failures),
   ]);
 
   const asof = str(tei?.asof);
@@ -429,6 +457,7 @@ export async function GET() {
           })),
         }
       : null,
+    pulse: buildPulse(pulse),
     technical: [buildEthTechnical(reports, mtf), buildSpcxTechnical(spcx, tei)].filter((t): t is LiveTechnical => t != null),
     tokens,
     satellite,

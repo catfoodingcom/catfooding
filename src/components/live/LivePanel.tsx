@@ -1,6 +1,7 @@
 "use client";
 
 import { referenceLabel, type EngineState, type LiveToken, type LiveVerdict, type TokenVerdict } from "@/lib/live/engine";
+import { EnginePulse } from "./EnginePulse";
 import { MacroCalendar } from "./MacroCalendar";
 import { GateReasoning, MacroReasoning } from "./Reasoning";
 import { TechnicalReasoning } from "./Technical";
@@ -65,6 +66,10 @@ export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePa
             />
           }
         />
+      </div>
+
+      <div className="grid">
+        <EnginePulse pulse={engine.pulse} asOf={engine.fetchedAt} />
       </div>
 
       {gate.rationale[0] && <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">Gate: {gate.rationale[0]}</p>}
