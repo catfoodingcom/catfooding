@@ -67,6 +67,10 @@ function calendarEvent(e: Raw): LiveCalendarEvent {
     unit: str(e.unit),
     inHours: num(e.inHours),
     hold: e.hold ? { from: String(e.hold.from), to: String(e.hold.to), wholeDay: !!e.hold.wholeDay, active: !!e.hold.active } : null,
+    assetHold: e.assetHold
+      ? { symbol: String(e.assetHold.symbol), from: String(e.assetHold.from), to: String(e.assetHold.to), wholeDay: !!e.assetHold.wholeDay, active: !!e.assetHold.active }
+      : null,
+    verified: typeof e.verified === "boolean" ? e.verified : null,
   };
 }
 
@@ -486,6 +490,9 @@ export async function GET() {
       holdingFor: calendar
         ? (calendar.holdingFor ?? []).map((h: Raw) => ({ date: String(h.date), event: String(h.event) }))
         : [{ date: "", event: "calendar unavailable" }],
+      holdingBySymbol: Object.fromEntries(
+        Object.entries((calendar?.holdingBySymbol ?? {}) as Record<string, Raw[]>).map(([sym, list]) => [sym, list.map((h) => ({ date: String(h.date), event: String(h.event) }))]),
+      ),
       upcoming: (calendar?.upcoming ?? []).map(calendarEvent),
       rule: str(calendar?.rule?.note),
     },

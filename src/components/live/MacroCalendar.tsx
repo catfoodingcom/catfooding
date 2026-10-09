@@ -33,6 +33,8 @@ interface DayCell {
   today: boolean;
   /** A "no new buying" window covers at least part of this day (UTC). */
   hold: boolean;
+  /** One token's own window (its earnings) covers this day; the rest of the index is unaffected. */
+  assetHold: string[];
   events: LiveCalendarEvent[];
 }
 
@@ -53,6 +55,7 @@ function buildDays(events: LiveCalendarEvent[], now: number): DayCell[] {
       past: t < today,
       today: t === today,
       hold: events.some((e) => e.hold && Date.parse(e.hold.from) < t + DAY_MS && Date.parse(e.hold.to) > t),
+      assetHold: [...new Set(events.filter((e) => e.assetHold && Date.parse(e.assetHold.from) < t + DAY_MS && Date.parse(e.assetHold.to) > t).map((e) => e.assetHold!.symbol))],
       events: events.filter((e) => e.date === iso),
     };
   });
@@ -74,10 +77,10 @@ function HoldStrip({ events, now, onPick }: { events: LiveCalendarEvent[]; now: 
         ))}
         {days.map((d) => {
           const top = d.events.find((e) => e.impact === "high") ?? d.events[0];
-          const label = `${d.iso}${d.hold ? " · no new buying" : ""}${d.events.length ? " · " + d.events.map((e) => e.event).join(", ") : ""}`;
+          const label = `${d.iso}${d.hold ? " · no new buying" : ""}${d.assetHold.length ? ` · ${d.assetHold.join(", ")} held` : ""}${d.events.length ? " · " + d.events.map((e) => e.event).join(", ") : ""}`;
           const box = `relative flex h-9 flex-col items-center justify-center rounded text-[10px] ${
             d.hold ? "bg-[#ffd23f]/20 text-[#ffd23f]" : "bg-ink-raised text-cream/70"
-          } ${d.past ? "opacity-30" : ""} ${d.today ? "ring-1 ring-acid" : ""}`;
+          } ${d.past ? "opacity-30" : ""} ${d.today ? "ring-1 ring-acid" : d.assetHold.length && !d.hold ? "ring-1 ring-inset ring-info/60" : ""}`;
           const inner = (
             <>
               {d.monthLabel && <span className="absolute left-0.5 top-0 text-[7px] uppercase text-muted-foreground">{d.monthLabel}</span>}
@@ -100,6 +103,10 @@ function HoldStrip({ events, now, onPick }: { events: LiveCalendarEvent[]; now: 
         <span>
           <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#ffd23f]/40 align-middle" />
           no new buying
+        </span>
+        <span>
+          <span className="mr-1 inline-block h-2 w-2 rounded-sm align-middle ring-1 ring-inset ring-info/60" />
+          one token held (earnings)
         </span>
         <span>
           <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#ff5d5d] align-middle" />
@@ -130,6 +137,7 @@ function EventRow({ e, open, onToggle }: { e: LiveCalendarEvent; open: boolean; 
           <span className="font-display text-sm font-bold text-cream">
             {e.event}
             {e.hold?.active && <span className="ml-2 font-mono text-[9px] uppercase text-[#ffd23f]">⏳ holding</span>}
+            {e.assetHold && <span className="ml-2 font-mono text-[9px] uppercase text-info">{e.assetHold.active ? `⏳ holding ${e.assetHold.symbol}` : `${e.assetHold.symbol} only`}</span>}
           </span>
           <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase ${IMPACT_COLOR[e.impact ?? "low"] ?? IMPACT_COLOR.low}`}>
             {e.impact ?? "n/a"}
@@ -147,6 +155,12 @@ function EventRow({ e, open, onToggle }: { e: LiveCalendarEvent; open: boolean; 
           <p className="text-[#ffd23f]">
             No new buying from {when(e.hold.from)} to {when(e.hold.to)}
             {e.hold.wholeDay ? " (whole day: release time not fixed)" : ""}.
+          </p>
+        )}
+        {e.assetHold && (
+          <p className="text-info">
+            No new buying of {e.assetHold.symbol} from {when(e.assetHold.from)} to {when(e.assetHold.to)}. Every other token is unaffected.
+            {e.verified === false ? " Date not yet announced by the company: a third-party estimate." : ""}
           </p>
         )}
       </div>

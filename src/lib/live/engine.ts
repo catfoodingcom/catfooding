@@ -117,6 +117,10 @@ export interface LiveCalendarEvent {
   unit: string | null;
   inHours: number | null;
   hold: { from: string; to: string; wholeDay: boolean; active: boolean } | null;
+  /** Set for an event scoped to one token (its earnings): new buying of that token only is held. */
+  assetHold: { symbol: string; from: string; to: string; wholeDay: boolean; active: boolean } | null;
+  /** False when the date is a third-party estimate the company has not announced. */
+  verified: boolean | null;
 }
 
 export interface LiveHolding {
@@ -256,6 +260,8 @@ export interface EngineState {
   calendar: {
     holdingNow: boolean;
     holdingFor: { date: string; event: string }[];
+    /** Tokens with their own hold active right now (an earnings window), by symbol. */
+    holdingBySymbol: Record<string, { date: string; event: string }[]>;
     upcoming: LiveCalendarEvent[];
     rule: string | null;
   };
@@ -317,6 +323,8 @@ export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict 
   const rulesAllow = rulesAllowBuying(gate);
   const strong = token.bearing === "bull" && token.phase != null && STRONG_PHASES.includes(token.phase);
   const holdNames = calendar.holdingFor.map((h) => h.event).join(", ");
+  // an event scoped to this token alone, such as its earnings
+  const ownNames = (calendar.holdingBySymbol[token.symbol] ?? []).map((h) => h.event).join(", ");
 
   const checks: TokenVerdict["checks"] = [
     { label: "Engine data", ok: !engine.stale, detail: engine.ageMinutes == null ? "no reading" : `${engine.ageMinutes} min old` },
@@ -332,7 +340,7 @@ export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict 
       ok: premiumOk,
       detail: token.premiumPct == null ? "no peg reading" : `${pct(token.premiumPct)} vs ${session.anchored ? "the real share" : "the last reference price"} (limit ±${MAX_PREMIUM_PCT}%)`,
     },
-    { label: "Calendar is clear", ok: !calendar.holdingNow, detail: calendar.holdingNow ? `holding for ${holdNames}` : "no hold" },
+    { label: "Calendar is clear", ok: !calendar.holdingNow && !ownNames, detail: calendar.holdingNow ? `holding for ${holdNames}` : ownNames ? `this token is held for ${ownNames}` : "no hold" },
     { label: "Rules allow buying", ok: rulesAllow, detail: gateDetail(gate) },
     { label: "Trend is strong", ok: strong, detail: token.phase ? `${token.phase} · ${token.bearing ?? "?"}` : "no phase" },
   ];
@@ -351,6 +359,7 @@ export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict 
     };
   }
   if (calendar.holdingNow) return { verdict: "WAIT", reason: `Calendar hold: ${holdNames}. Waiting for the print to settle.`, checks };
+  if (ownNames) return { verdict: "WAIT", reason: `Held for ${ownNames}: no new buying of this token until the results are out and have settled.`, solo: true, checks };
   if (!rulesAllow) return { verdict: "WAIT", reason: `The gate says ${gate.decision ?? "nothing yet"}. Waiting.`, checks };
   if (strong) return { verdict: "HUNT", reason: `Real, fairly priced (${pct(token.premiumPct!)}), rules allow it, ${token.phase}. Paw up.`, shared: "Real, fairly priced, rules allow it, strong trend. Paw up.", checks };
   return { verdict: "WATCH", reason: `Allowed, but ${token.phase ?? "the trend"} isn't strong enough yet. Watching.`, shared: "Allowed, but the trend isn't strong enough yet. Watching.", checks };
