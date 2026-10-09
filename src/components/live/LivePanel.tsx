@@ -1,6 +1,6 @@
 "use client";
 
-import { CHAIN_LABEL, referenceLabel, type EngineState, type LiveChain, type LiveToken, type LiveVerdict, type TokenVerdict } from "@/lib/live/engine";
+import { CHAIN_LABEL, MAX_PREMIUM_PCT, referenceLabel, type EngineState, type LiveChain, type LiveToken, type LiveVerdict, type TokenVerdict } from "@/lib/live/engine";
 import { EnginePulse } from "./EnginePulse";
 import { MacroCalendar } from "./MacroCalendar";
 import { GateReasoning, MacroReasoning } from "./Reasoning";
@@ -162,7 +162,7 @@ function TokenGroups({ tokens, verdicts }: { tokens: LiveToken[]; verdicts: Reco
             </summary>
             <div className="border-t border-border p-2 space-y-1.5">
               {g.tokens.map((t) => (
-                <TokenRow key={t.symbol} token={t} verdict={verdicts[t.symbol]} showReason={false} />
+                <TokenRow key={t.symbol} token={t} verdict={verdicts[t.symbol]} showReason={!!g.showEach} />
               ))}
             </div>
           </details>
@@ -177,22 +177,31 @@ interface TokenGroup {
   verdict: LiveVerdict;
   reason: string;
   tokens: LiveToken[];
+  /** The tokens share a kind of problem but each has its own figure, so each row keeps its reason. */
+  showEach?: boolean;
 }
 
 const VERDICT_ORDER: LiveVerdict[] = ["HUNT", "REFUSE", "WAIT", "WATCH"];
 
 /** Tokens with the same verdict for the same reason fold into one row. A
- * token with its own problem (thin, mispriced, missing a reading) never
- * folds. So: all alike = one "Index" row; a few differ = they stand alone
- * above the folded rest. */
+ * token with its own problem (thin, missing a reading) stands alone. So: all
+ * alike = one "Index" row; a few differ = they stand alone above the folded rest.
+ * The exception is mispricing: when two or more tokens are refused on price
+ * (common overnight, when every token drifts from a frozen reference), they fold
+ * into one row that gives the range, and each keeps its own figure inside. */
 function groupTokens(tokens: LiveToken[], verdicts: Record<string, TokenVerdict>): TokenGroup[] {
   const groups = new Map<string, TokenGroup>();
+  const priced = tokens.filter((t) => verdicts[t.symbol]?.priceRefusal && t.premiumPct != null);
+  const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+  const lo = Math.min(...priced.map((t) => t.premiumPct!));
+  const hi = Math.max(...priced.map((t) => t.premiumPct!));
+  const pricedReason = `Priced more than ${MAX_PREMIUM_PCT}% away from the real share (${signed(lo)} to ${signed(hi)}). Not fair food.`;
   for (const t of tokens) {
     const v = verdicts[t.symbol];
     if (!v) continue;
     const reason = v.shared ?? v.reason;
-    const key = v.solo ? `solo|${t.symbol}` : `${v.verdict}|${reason}`;
-    const g = groups.get(key) ?? { key, verdict: v.verdict, reason, tokens: [] };
+    const key = v.priceRefusal && priced.length > 1 ? "priced" : v.solo ? `solo|${t.symbol}` : `${v.verdict}|${reason}`;
+    const g: TokenGroup = groups.get(key) ?? (key === "priced" ? { key, verdict: v.verdict, reason: pricedReason, tokens: [], showEach: true } : { key, verdict: v.verdict, reason, tokens: [] });
     g.tokens.push(t);
     groups.set(key, g);
   }
