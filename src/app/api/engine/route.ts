@@ -10,6 +10,8 @@ import {
   type LiveActivity,
   type LiveRecord,
   type LiveRisk,
+  MIN_USABLE_LIQUIDITY_USD,
+  type LiveChainRead,
   type LivePulse,
   type LiveTechnical,
   type PulseStatus,
@@ -304,6 +306,58 @@ function buildActivity(tei: Raw | null, calendar: Raw | null, sentinel: Raw | nu
   return out.sort((a, b) => b.timestamp - a.timestamp).slice(0, 40);
 }
 
+// The same stock tokens on Solana, from the chain-comparison feed: xStocks only, so the issuer
+// matches the X Layer book and the chain is the one thing that differs. The trend phase is the
+// stock's, so it is shared with X Layer. There is no Oracle score on Solana; "tradable" here
+// means the pool is deep enough to trade in.
+function buildSolana(venue: Raw | null, tei: Raw | null, paper: Raw | null): LiveChainRead | null {
+  const meta = (Array.isArray(venue?.venues) ? (venue.venues as Raw[]) : []).find((v) => v.id === "solana");
+  if (!venue?.ok || !meta || !Array.isArray(venue.rows)) return null;
+  const observedAt = str(meta.observedAt);
+  const ageMinutes = observedAt ? Math.max(0, Math.round((Date.now() - Date.parse(observedAt)) / 60000)) : null;
+  const tokens: LiveToken[] = TOKEN_UNIVERSE.map((symbol) => {
+    const row = (venue.rows as Raw[]).find((r) => `${r.name}x` === symbol);
+    const w: Raw = (Array.isArray(row?.wrappers?.solana) ? (row.wrappers.solana as Raw[]) : []).find((x) => x.issuer === "xstocks") ?? {};
+    const phase: Raw = tei?.nav?.phases?.[symbol] ?? {};
+    const liquidityUsd = num(w.liquidityUsd);
+    const tradable = liquidityUsd == null ? null : liquidityUsd >= MIN_USABLE_LIQUIDITY_USD;
+    return {
+      symbol,
+      tradable,
+      rating: tradable == null ? null : tradable ? "deep enough" : "too thin",
+      score: null,
+      liquidityUsd,
+      premiumPct: num(w.premiumPct),
+      realPrice: num(row?.realPrice),
+      wrapperPrice: num(w.price),
+      phase: str(phase.phase),
+      bearing: str(phase.bearing),
+      planUsd: null,
+    };
+  });
+  // Crypto satellite on Solana: ETH (bridged, so it must hold its peg to ETH) and SOL, the chain's own token.
+  const satellite: LiveToken[] = (Array.isArray(paper?.crypto?.solana?.legs) ? (paper.crypto.solana.legs as Raw[]) : []).map((l) => {
+    const peg = num(l.pegPct);
+    const bridged = typeof l.note === "string" && l.note.includes("bridged");
+    const price = num(l.price);
+    const tradable = price == null ? null : bridged ? peg != null && Math.abs(peg) <= 1 : true;
+    return {
+      symbol: String(l.symbol),
+      tradable,
+      rating: price == null ? null : bridged ? (peg == null ? "bridged ETH, peg not read" : `bridged ETH, ${peg >= 0 ? "+" : ""}${peg.toFixed(2)}% vs ETH`) : "the chain's own token",
+      score: null,
+      liquidityUsd: null,
+      premiumPct: null,
+      realPrice: null,
+      wrapperPrice: price,
+      phase: str(l.phase),
+      bearing: str(l.bearing),
+      planUsd: null,
+    };
+  });
+  return { issuer: "xStocks", observedAt, ageMinutes, stale: ageMinutes == null || ageMinutes > STALE_AFTER_MIN || meta.stale === true, tokens, satellite };
+}
+
 const PULSE_STATUS: PulseStatus[] = ["ok", "running", "overdue", "failed", "unknown"];
 const pulseStatus = (v: unknown): PulseStatus => (PULSE_STATUS.includes(v as PulseStatus) ? (v as PulseStatus) : "unknown");
 
@@ -331,7 +385,7 @@ function buildPulse(raw: Raw | null): LivePulse | null {
 
 export async function GET() {
   const failures: string[] = [];
-  const [tei, calendar, sentinel, book, trades, reports, mtf, spcx, pulse] = await Promise.all([
+  const [tei, calendar, sentinel, book, trades, reports, mtf, spcx, pulse, venue, paper] = await Promise.all([
     feed("tei", failures),
     feed("calendar", failures),
     feed("sentinel", failures),
@@ -341,6 +395,8 @@ export async function GET() {
     feed("mtf", failures),
     feed("spcx", failures),
     feed("pulse", failures),
+    feed("lab-venue", failures),
+    feed("paper-chains", failures),
   ]);
 
   const asof = str(tei?.asof);
@@ -457,6 +513,7 @@ export async function GET() {
           })),
         }
       : null,
+    solana: buildSolana(venue, tei, paper),
     pulse: buildPulse(pulse),
     technical: [buildEthTechnical(reports, mtf), buildSpcxTechnical(spcx, tei)].filter((t): t is LiveTechnical => t != null),
     tokens,

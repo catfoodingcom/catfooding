@@ -7,6 +7,7 @@ import { createSimulationState, createDemoSeed } from "@/lib/simulation/factory"
 import { runTick, acceptProposal, rejectProposal } from "@/lib/simulation/simulationEngine";
 import type { SimulationState } from "@/lib/simulation/types";
 import { satiateHunger } from "@/lib/engine/vitalsEngine";
+import type { LiveChain } from "@/lib/live/engine";
 
 export type SimSpeed = "NORMAL" | "FAST";
 /** DEMO = the mock market simulator drives the cat. LIVE = the CoAgentic engine
@@ -29,6 +30,9 @@ interface CatFoodStore {
   mode: RoomMode;
   catStyle: CatStyle;
   setCatStyle: (style: CatStyle) => void;
+  /** Live mode: which chain's token readings the verdicts are shown for. The book is always X Layer. */
+  chain: LiveChain;
+  setChain: (chain: LiveChain) => void;
   /** False until zustand/persist has finished reading localStorage. Pages
    * that redirect-if-no-cat must wait for this — otherwise a hard reload
    * or direct URL visit bounces a real, saved cat back to /adopt because
@@ -69,6 +73,8 @@ export const useCatFoodStore = create<CatFoodStore>()(
   mode: "DEMO",
   catStyle: "video",
   setCatStyle: (catStyle) => set({ catStyle }),
+  chain: "xlayer",
+  setChain: (chain) => set({ chain }),
   hasHydrated: false,
   setHasHydrated: (value) => set({ hasHydrated: value }),
 
@@ -292,7 +298,7 @@ export const useCatFoodStore = create<CatFoodStore>()(
     {
       name: "catfood-sim",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ sim: state.sim, speed: state.speed, mode: state.mode, catStyle: state.catStyle }),
+      partialize: (state) => ({ sim: state.sim, speed: state.speed, mode: state.mode, catStyle: state.catStyle, chain: state.chain }),
       onRehydrateStorage: () => (state, error) => {
         if (error) console.error("Failed to rehydrate CATFOOD state:", error);
         // lastRefusal is a transient demo beat — don't carry a stale REFUSED card

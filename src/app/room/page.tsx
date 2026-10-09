@@ -22,7 +22,7 @@ import { LivePanel } from "@/components/live/LivePanel";
 import { BookSummary } from "@/components/live/BookView";
 import { LiveRiskPanel } from "@/components/live/LiveRiskPanel";
 import { useEngine } from "@/lib/hooks/useEngine";
-import { catRead, liveVitals, satelliteVerdictFor, verdictFor, type TokenVerdict } from "@/lib/live/engine";
+import { catRead, engineForChain, liveVitals, satelliteVerdictFor, verdictFor, type LiveChain, type TokenVerdict } from "@/lib/live/engine";
 import { LiveLevel, LiveVitals, TrackRecord, liveStage } from "@/components/live/LiveVitals";
 import { Wordmark } from "@/components/brand/Wordmark";
 
@@ -57,19 +57,25 @@ export default function CatRoomPage() {
   const [reel, setReel] = useState<number | null>(null);
   const nextInReel = useCallback(() => setReel((i) => (i == null || i + 1 >= SHOWREEL.length ? null : i + 1)), []);
   const { engine, error: engineError } = useEngine(live);
+  const wantedChain = useCatFoodStore((st) => st.chain);
+  const setChain = useCatFoodStore((st) => st.setChain);
 
   // Live mode: the engine's verdicts drive the cat instead of the simulator.
+  // The verdicts (and so the cat) follow the chain being viewed. If Solana has no reading,
+  // fall back to X Layer instead of judging nothing.
+  const chain: LiveChain = wantedChain === "solana" && engine?.ok && engine.solana ? "solana" : "xlayer";
+  const view = useMemo(() => (engine?.ok ? engineForChain(engine, chain) : null), [engine, chain]);
   const verdicts = useMemo(() => {
     const out: Record<string, TokenVerdict> = {};
-    if (engine?.ok) for (const t of engine.tokens) out[t.symbol] = verdictFor(t, engine);
+    if (view) for (const t of view.tokens) out[t.symbol] = verdictFor(t, view);
     return out;
-  }, [engine]);
+  }, [view]);
   const satelliteVerdicts = useMemo(() => {
     const out: Record<string, TokenVerdict> = {};
-    if (engine?.ok) for (const t of engine.satellite) out[t.symbol] = satelliteVerdictFor(t, engine);
+    if (view) for (const t of view.satellite) out[t.symbol] = satelliteVerdictFor(t, view);
     return out;
-  }, [engine]);
-  const read = useMemo(() => (live && engine ? catRead(engine, verdicts, satelliteVerdicts) : null), [live, engine, verdicts, satelliteVerdicts]);
+  }, [view]);
+  const read = useMemo(() => (live && view ? catRead(view, verdicts, satelliteVerdicts) : null), [live, view, verdicts, satelliteVerdicts]);
 
   useEffect(() => {
     if (sim && !isRunning && !live) start();
@@ -215,7 +221,7 @@ export default function CatRoomPage() {
               )}
             </div>
 
-            {live && <LivePanel engine={engine?.ok ? engine : null} verdicts={verdicts} satelliteVerdicts={satelliteVerdicts} error={engineError} />}
+            {live && <LivePanel engine={engine?.ok ? engine : null} view={view} chain={chain} onChain={setChain} verdicts={verdicts} satelliteVerdicts={satelliteVerdicts} error={engineError} />}
 
             {!live && sim.pendingProposal && proposalMetrics && (
               <PreyCard

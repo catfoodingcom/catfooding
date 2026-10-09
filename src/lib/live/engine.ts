@@ -227,6 +227,22 @@ export interface LivePulse {
   groups: LivePulseGroup[];
 }
 
+export type LiveChain = "xlayer" | "solana";
+export const CHAIN_LABEL: Record<LiveChain, string> = { xlayer: "X Layer", solana: "Solana" };
+/** Pool liquidity below this is not a market anyone can trade in (same line the chain comparison uses). */
+export const MIN_USABLE_LIQUIDITY_USD = 50_000;
+
+/** The same stock tokens (same issuer) read on a second chain. A comparison only: the live book is on X Layer. */
+export interface LiveChainRead {
+  issuer: string;
+  observedAt: string | null;
+  ageMinutes: number | null;
+  stale: boolean;
+  tokens: LiveToken[];
+  /** The crypto satellite's like-for-like on this chain: ETH stays, the chain's own token replaces OKB. */
+  satellite: LiveToken[];
+}
+
 export interface EngineState {
   ok: boolean;
   fetchedAt: string;
@@ -245,6 +261,8 @@ export interface EngineState {
   };
   sentinel: LiveSentinel | null;
   technical: LiveTechnical[];
+  /** The index's stock tokens as read on Solana (xStocks, the same issuer). Null if that feed is down. */
+  solana: LiveChainRead | null;
   /** Heartbeat of the scheduled jobs that keep every reading above fresh. */
   pulse: LivePulse | null;
   tokens: LiveToken[];
@@ -336,6 +354,16 @@ export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict 
   if (!rulesAllow) return { verdict: "WAIT", reason: `The gate says ${gate.decision ?? "nothing yet"}. Waiting.`, checks };
   if (strong) return { verdict: "HUNT", reason: `Real, fairly priced (${pct(token.premiumPct!)}), rules allow it, ${token.phase}. Paw up.`, shared: "Real, fairly priced, rules allow it, strong trend. Paw up.", checks };
   return { verdict: "WATCH", reason: `Allowed, but ${token.phase ?? "the trend"} isn't strong enough yet. Watching.`, shared: "Allowed, but the trend isn't strong enough yet. Watching.", checks };
+}
+
+/** The engine as seen from one chain. X Layer is the engine itself. Solana swaps in that chain's
+ * token readings, its own crypto satellite (ETH + SOL) and its freshness; the session, calendar and gate are
+ * shared, because they are about the stocks and the rules, not the chain. Returns null when the
+ * chain has no reading. */
+export function engineForChain(engine: EngineState, chain: LiveChain): EngineState | null {
+  if (chain === "xlayer") return engine;
+  if (!engine.solana) return null;
+  return { ...engine, tokens: engine.solana.tokens, satellite: engine.solana.satellite, ageMinutes: engine.solana.ageMinutes, stale: engine.solana.stale };
 }
 
 /** How the real share (the reference the token is checked against) is trading. */

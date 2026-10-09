@@ -1,6 +1,6 @@
 "use client";
 
-import { referenceLabel, type EngineState, type LiveToken, type LiveVerdict, type TokenVerdict } from "@/lib/live/engine";
+import { CHAIN_LABEL, referenceLabel, type EngineState, type LiveChain, type LiveToken, type LiveVerdict, type TokenVerdict } from "@/lib/live/engine";
 import { EnginePulse } from "./EnginePulse";
 import { MacroCalendar } from "./MacroCalendar";
 import { GateReasoning, MacroReasoning } from "./Reasoning";
@@ -18,6 +18,10 @@ const markColor = (ok: boolean | null) => (ok == null ? "text-muted-foreground" 
 
 interface LivePanelProps {
   engine: EngineState | null;
+  /** The engine as seen from the chain being viewed: its tokens and freshness. */
+  view: EngineState | null;
+  chain: LiveChain;
+  onChain: (chain: LiveChain) => void;
   verdicts: Record<string, TokenVerdict>;
   satelliteVerdicts: Record<string, TokenVerdict>;
   error: boolean;
@@ -25,8 +29,8 @@ interface LivePanelProps {
 
 /** Live mode: the real engine's read on each token, and why the cat will or
  * won't eat it. Each row opens to show every check. */
-export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePanelProps) {
-  if (!engine) {
+export function LivePanel({ engine, view, chain, onChain, verdicts, satelliteVerdicts, error }: LivePanelProps) {
+  if (!engine || !view) {
     return (
       <div className="chunky-border bg-ink-raised rounded-2xl p-4 font-mono text-xs text-muted-foreground">
         {error ? "Can't reach the CoAgentic engine. The cat won't guess. Switch to Demo to keep playing." : "Reading the CoAgentic engine…"}
@@ -85,24 +89,50 @@ export function LivePanel({ engine, verdicts, satelliteVerdicts, error }: LivePa
       </p>
 
       <div className="space-y-1.5 border-t border-border pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-acid">Tokenized stocks</span>
+          <div role="group" aria-label="Chain" className="flex rounded-full border border-border p-0.5 font-mono text-[10px] uppercase tracking-wider">
+            {(["xlayer", "solana"] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-pressed={chain === c}
+                disabled={c === "solana" && !engine.solana}
+                title={c === "solana" && !engine.solana ? "No Solana reading right now" : undefined}
+                onClick={() => onChain(c)}
+                className={`rounded-full px-2.5 py-1 transition-colors disabled:opacity-40 ${chain === c ? "bg-acid text-ink" : "text-muted-foreground hover:text-cream"}`}
+              >
+                {CHAIN_LABEL[c]}
+              </button>
+            ))}
+          </div>
+        </div>
         <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
-          <span className="uppercase tracking-wider text-acid">Tokenized stocks</span> · the index core on X Layer: each must be tradable and fairly priced
-          against its real share before the calendar and gate are even asked.
+          {chain === "xlayer" ? (
+            <>The index core on X Layer: each must be tradable and fairly priced against its real share before the calendar and gate are even asked.</>
+          ) : (
+            <>
+              The same six tokens from the same issuer ({engine.solana?.issuer}), read on <span className="text-cream">Solana</span>. Same rules, different
+              chain. A comparison only: our book is on X Layer, and nothing is held or traded on Solana.
+            </>
+          )}
         </p>
-        <TokenGroups tokens={engine.tokens} verdicts={verdicts} />
+        <TokenGroups tokens={view.tokens} verdicts={verdicts} />
       </div>
 
-      {engine.satellite.length > 0 && (
+      {view.satellite.length > 0 && (
         <div className="space-y-1.5 border-t border-border pt-3">
           <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
             <span className="uppercase tracking-wider text-acid">Crypto satellite</span> · judged by a shorter rule: no real share behind these, so no
             fair-price check, and no Oracle depth score.
+            {chain === "solana" && " On Solana it is ETH and SOL: ETH stays, and the chain's own token takes OKB's place. ETH here is bridged, so it must hold its price against ETH."}
           </p>
-          <TokenGroups tokens={engine.satellite} verdicts={satelliteVerdicts} />
+          <TokenGroups tokens={view.satellite} verdicts={satelliteVerdicts} />
         </div>
       )}
 
       <p className="font-mono text-[9px] text-muted-foreground leading-relaxed">
+        {chain === "solana" && <>Solana read {view.ageMinutes ?? "?"} min ago{view.stale ? " (stale)" : ""} · </>}
         Engine read {engine.ageMinutes ?? "?"} min ago{engine.stale ? " (stale)" : ""}
         {engine.equity != null && ` · Steward book $${engine.equity.toFixed(2)}`}
         {engine.failures.length > 0 && ` · unavailable: ${engine.failures.join(", ")}`}. Read-only: the cat shows the engine&apos;s verdict and places no trades. Not
