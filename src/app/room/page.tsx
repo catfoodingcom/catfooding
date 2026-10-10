@@ -85,9 +85,9 @@ export default function CatRoomPage() {
   if (!sim || !market) return null;
   const { cat, portfolio, riskSettings } = sim;
   // Live mode shows the real book; Demo shows the cat's paper portfolio.
-  const book = live && engine?.ok ? engine.book : null;
+  const book = live && view ? view.book : null;
   const record = live && engine?.ok ? engine.record : null;
-  const vitals = live && engine?.ok ? liveVitals(engine) : null;
+  const vitals = live && view ? liveVitals(view) : null;
 
   const proposalMetrics = sim.pendingProposal?.token ? market.tokens[sim.pendingProposal.token] : null;
 
@@ -280,14 +280,18 @@ export default function CatRoomPage() {
           <div className="space-y-4">
             {live ? (
               <div className="chunky-border bg-ink-raised rounded-2xl p-4">
-                <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Book · Steward, live</h2>
-                {book ? <BookSummary book={book} /> : <p className="font-mono text-xs text-muted-foreground">Reading the book…</p>}
+                <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Book · Steward, live{chain === "solana" ? " · Solana" : ""}</h2>
+                {book ? (
+                  <BookSummary book={book} />
+                ) : (
+                  <p className="font-mono text-xs text-muted-foreground">{chain === "solana" && engine?.ok ? "Nothing held on Solana." : "Reading the book…"}</p>
+                )}
                 <Link href="/portfolio" className="mt-3 inline-block font-mono text-[10px] uppercase tracking-wider text-acid hover:underline">
                   Holdings and targets →
                 </Link>
               </div>
             ) : null}
-            {live && engine?.ok && engine.risk ? (
+            {live && engine?.ok && engine.risk && chain === "xlayer" ? (
               <div className="chunky-border bg-ink-raised rounded-2xl p-4">
                 <LiveRiskPanel risk={engine.risk} gate={engine.gate.decision} />
               </div>
@@ -307,9 +311,9 @@ export default function CatRoomPage() {
             )}
 
             <div className="chunky-border bg-ink-raised rounded-2xl p-4 h-96 flex flex-col">
-              <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Activity{live ? " · real events" : ""}</h2>
+              <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Activity{live ? ` · real events${chain === "solana" ? " · Solana" : ""}` : ""}</h2>
               <div className="flex-1 min-h-0">
-                <ActivityFeed events={live ? (engine?.ok ? engine.activity : []) : sim.activity} />
+                <ActivityFeed events={live ? (view ? view.activity : []) : sim.activity} />
               </div>
             </div>
           </div>

@@ -82,11 +82,17 @@ function calendarEvent(e: Raw): LiveCalendarEvent {
 // The index names ETH; the book holds it as xETH on X Layer.
 const TARGET_ALIAS: Record<string, string> = { xETH: "ETH" };
 
-function buildBook(book: Raw | null, tei: Raw | null, swaps: Raw[]): LiveBook | null {
-  const b: Raw | undefined = book?.books?.[0];
-  if (!b || num(b.equityUsd) == null) return null;
-  const targets = new Map<string, number>((tei?.constituents ?? []).map((c: Raw) => [String(c.symbol), Number(c.weightPct)]));
-  const sleeves = new Map<string, string>((tei?.constituents ?? []).map((c: Raw) => [String(c.symbol), String(c.sleeve)]));
+// On Solana the index's crypto satellite keeps ETH and swaps OKB for the chain's own token.
+const SOLANA_SATELLITE: Record<string, string> = { OKB: "SOL" };
+
+function buildBook(book: Raw | null, tei: Raw | null, swaps: Raw[], chain: "xlayer" | "solana" = "xlayer"): LiveBook | null {
+  const b: Raw | undefined = chain === "xlayer" ? book?.books?.[0] : (book?.books ?? []).find((x: Raw) => x.chain === chain);
+  if (!b || num(b.equityUsd) == null || !(b.equityUsd > 0)) return null;
+  const rename = (sym: string) => (chain === "solana" ? (SOLANA_SATELLITE[sym] ?? sym) : sym);
+  const targets = new Map<string, number>((tei?.constituents ?? []).map((c: Raw) => [rename(String(c.symbol)), Number(c.weightPct)]));
+  const sleeves = new Map<string, string>((tei?.constituents ?? []).map((c: Raw) => [rename(String(c.symbol)), String(c.sleeve)]));
+  // a token that is both a holding and the chain's fee money arrives as two rows (position + gas)
+  const positions = new Set<string>((b.holdings ?? []).filter((h: Raw) => h.kind === "position").map((h: Raw) => String(h.symbol)));
   const universe = new Set<string>(TOKEN_UNIVERSE);
   return {
     observedAt: str(book?.observedAt),
@@ -97,10 +103,12 @@ function buildBook(book: Raw | null, tei: Raw | null, swaps: Raw[]): LiveBook | 
     holdings: (b.holdings ?? [])
       .filter((h: Raw) => !h.dust && num(h.usd) != null)
       .map((h: Raw) => {
-        const symbol = String(h.symbol);
+        const raw = String(h.symbol);
         const kind = str(h.kind) ?? "position";
-        const declared = sleeves.get(TARGET_ALIAS[symbol] ?? symbol);
-        const sleeve = kind === "cash" ? "reserve" : declared === "equity" || universe.has(symbol) ? "equity" : "crypto";
+        const feeOnly = kind === "gas" && positions.has(raw);        // the fee share of a token also held as a position
+        const symbol = feeOnly ? `${raw} (fees)` : raw;
+        const declared = feeOnly ? undefined : sleeves.get(TARGET_ALIAS[symbol] ?? symbol);
+        const sleeve = kind === "cash" || feeOnly ? "reserve" : declared === "equity" || universe.has(symbol) ? "equity" : "crypto";
         return {
           symbol,
           usd: h.usd,
@@ -109,11 +117,42 @@ function buildBook(book: Raw | null, tei: Raw | null, swaps: Raw[]): LiveBook | 
           kind,
           sleeve,
           pct: Math.round((h.usd / b.equityUsd) * 1000) / 10,
-          targetPct: targets.get(TARGET_ALIAS[symbol] ?? symbol) ?? null,
+          targetPct: feeOnly ? null : (targets.get(TARGET_ALIAS[symbol] ?? symbol) ?? null),
         };
       }),
-    plan: swaps.filter((s) => num(s.usd) != null).map((s) => ({ side: String(s.side), symbol: String(s.symbol), usd: s.usd })),
+    plan: chain === "xlayer" ? swaps.filter((s) => num(s.usd) != null).map((s) => ({ side: String(s.side), symbol: String(s.symbol), usd: s.usd })) : [],
+    initialising: (() => {
+      // what the book holds, under the index's own names (X Layer's ETH reports as xETH)
+      const have = new Set<string>((b.holdings ?? []).filter((h: Raw) => !h.dust && h.kind !== "cash").map((h: Raw) => TARGET_ALIAS[String(h.symbol)] ?? String(h.symbol)));
+      const held = [...targets.keys()].filter((sym) => have.has(sym)).length;
+      return targets.size > 0 && held < targets.size ? { held, total: targets.size } : null;
+    })(),
   };
+}
+
+// What happened on Solana: the wallet's own fills and deposits there, plus the events every
+// chain shares (calendar holds waited through, macro views). X Layer's gate and Council lines
+// are about that book and are left out.
+function buildSolanaActivity(solTrades: Raw | null, shared: LiveActivity[]): LiveActivity[] {
+  const out: LiveActivity[] = shared.filter((a) => a.category === "LEVEL" || a.category === "MEMORY" || a.message.startsWith("Calendar hold"));
+  const add = (iso: unknown, e: Omit<LiveActivity, "id" | "timestamp">) => {
+    const timestamp = typeof iso === "string" ? Date.parse(iso) : NaN;
+    if (Number.isFinite(timestamp)) out.push({ id: `sol-${e.category}-${timestamp}-${out.length}`, timestamp, ...e });
+  };
+  for (const f of (Array.isArray(solTrades?.fills) ? solTrades.fills : []) as Raw[]) {
+    if (!str(f.txHash)) continue;
+    add(f.ts, {
+      icon: f.side === "SELL" ? "📤" : "🐾",
+      category: "TRADE",
+      message: `${f.side === "SELL" ? "Sold" : "Bought"} ${f.symbol} for $${Number(f.usd).toFixed(0)}, authorized by a human. Verified on Solana.`,
+      xpChange: RECORD_XP.fill,
+    });
+  }
+  for (const d of (Array.isArray(solTrades?.deposits) ? solTrades.deposits : []) as Raw[]) {
+    const what = (Array.isArray(d.assets) ? (d.assets as Raw[]) : []).map((a) => `${Number(a.amount).toFixed(a.symbol === "SOL" ? 3 : 0)} ${a.symbol}`).join(" + ");
+    if (what) add(d.ts, { icon: "💧", category: "SYSTEM", message: `Solana book funded: ${what}.` });
+  }
+  return out.sort((a, b) => b.timestamp - a.timestamp).slice(0, 40);
 }
 
 function buildBacktest(tei: Raw | null): LiveBacktest | null {
@@ -133,14 +172,16 @@ function buildBacktest(tei: Raw | null): LiveBacktest | null {
 
 // The track record is recounted from the public feeds on every read, starting
 // at the Steward book's first on-chain fill. Nothing is stored or self-reported.
-function buildRecord(trades: Raw | null, calendar: Raw | null, sentinel: Raw | null): LiveRecord | null {
+function buildRecord(trades: Raw | null, calendar: Raw | null, sentinel: Raw | null, solTrades: Raw | null = null): LiveRecord | null {
   if (!trades) return null;
   const universe = new Set<string>(TOKEN_UNIVERSE);
   const all: Raw[] = Array.isArray(trades.trades) ? trades.trades : [];
   const stewardFills = all.filter((t) => universe.has(String(t.symbol)) && str(t.txHash) && str(t.ts));
   const since = stewardFills.map((t) => String(t.ts)).sort()[0] ?? null;
   // From the start of that day: the first allocation's ETH and OKB legs filled before its first stock token.
-  const fills = since ? all.filter((t) => str(t.txHash) && String(t.ts).slice(0, 10) >= since.slice(0, 10)).length : 0;
+  // one engine, one record: fills on every chain count toward the same level
+  const solFills = (Array.isArray(solTrades?.fills) ? (solTrades.fills as Raw[]) : []).filter((f) => str(f.txHash)).length;
+  const fills = (since ? all.filter((t) => str(t.txHash) && String(t.ts).slice(0, 10) >= since.slice(0, 10)).length : 0) + solFills;
   const holds = since
     ? (calendar?.past ?? []).filter((e: Raw) => e.kind === "scheduled" && e.scope === "broad" && String(e.date) >= since.slice(0, 10)).length
     : 0;
@@ -319,7 +360,7 @@ function buildActivity(tei: Raw | null, calendar: Raw | null, sentinel: Raw | nu
 // matches the X Layer book and the chain is the one thing that differs. The trend phase is the
 // stock's, so it is shared with X Layer. There is no Oracle score on Solana; "tradable" here
 // means the pool is deep enough to trade in.
-function buildSolana(venue: Raw | null, tei: Raw | null, paper: Raw | null): LiveChainRead | null {
+function buildSolana(venue: Raw | null, tei: Raw | null, paper: Raw | null, book: LiveBook | null, activity: LiveActivity[]): LiveChainRead | null {
   const meta = (Array.isArray(venue?.venues) ? (venue.venues as Raw[]) : []).find((v) => v.id === "solana");
   if (!venue?.ok || !meta || !Array.isArray(venue.rows)) return null;
   const observedAt = str(meta.observedAt);
@@ -364,7 +405,7 @@ function buildSolana(venue: Raw | null, tei: Raw | null, paper: Raw | null): Liv
       planUsd: null,
     };
   });
-  return { issuer: "xStocks", observedAt, ageMinutes, stale: ageMinutes == null || ageMinutes > STALE_AFTER_MIN || meta.stale === true, tokens, satellite };
+  return { issuer: "xStocks", observedAt, ageMinutes, stale: ageMinutes == null || ageMinutes > STALE_AFTER_MIN || meta.stale === true, tokens, satellite, book, activity };
 }
 
 const PULSE_STATUS: PulseStatus[] = ["ok", "running", "overdue", "failed", "unknown"];
@@ -394,7 +435,7 @@ function buildPulse(raw: Raw | null): LivePulse | null {
 
 export async function GET() {
   const failures: string[] = [];
-  const [tei, calendar, sentinel, book, trades, reports, mtf, spcx, pulse, venue, paper] = await Promise.all([
+  const [tei, calendar, sentinel, book, trades, reports, mtf, spcx, pulse, venue, paper, solTrades] = await Promise.all([
     feed("tei", failures),
     feed("calendar", failures),
     feed("sentinel", failures),
@@ -406,6 +447,7 @@ export async function GET() {
     feed("pulse", failures),
     feed("lab-venue", failures),
     feed("paper-chains", failures),
+    feed("trades-solana", failures),
   ]);
 
   const asof = str(tei?.asof);
@@ -459,7 +501,8 @@ export async function GET() {
       };
     });
 
-  const record = buildRecord(trades, calendar, sentinel);
+  const record = buildRecord(trades, calendar, sentinel, solTrades);
+  const activity = buildActivity(tei, calendar, sentinel, trades, record?.since ?? null);
 
   const state: EngineState = {
     ok: !!tei,
@@ -525,7 +568,7 @@ export async function GET() {
           })),
         }
       : null,
-    solana: buildSolana(venue, tei, paper),
+    solana: buildSolana(venue, tei, paper, buildBook(book, tei, swaps, "solana"), buildSolanaActivity(solTrades, activity)),
     pulse: buildPulse(pulse),
     technical: [buildEthTechnical(reports, mtf), buildSpcxTechnical(spcx, tei)].filter((t): t is LiveTechnical => t != null),
     tokens,
@@ -537,7 +580,7 @@ export async function GET() {
       ? { decision: str(tei.entry.decision), released: (tei.entry.legs as Raw[]).filter((l) => l.release === true).length, total: tei.entry.legs.length }
       : null,
     risk: buildRisk(tei, swaps),
-    activity: buildActivity(tei, calendar, sentinel, trades, record?.since ?? null),
+    activity,
     failures,
   };
 

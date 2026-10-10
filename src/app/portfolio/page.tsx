@@ -15,6 +15,7 @@ import type { Trade } from "@/lib/types";
 import { useCatFoodStore } from "@/lib/store/useCatFoodStore";
 import { useEngine } from "@/lib/hooks/useEngine";
 import { BacktestChart, BookHoldings, BookPlan, BookSummary } from "@/components/live/BookView";
+import { CHAIN_LABEL } from "@/lib/live/engine";
 
 export default function PortfolioPage() {
   const router = useRouter();
@@ -22,13 +23,16 @@ export default function PortfolioPage() {
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const live = useCatFoodStore((s) => s.mode) === "LIVE";
   const { engine, error } = useEngine(live);
+  const wantedChain = useCatFoodStore((s) => s.chain);
 
   if (!sim) return null;
   const { portfolio, memories } = sim;
 
   // Live mode: the real Steward book instead of the cat's paper portfolio.
   if (live) {
-    const book = engine?.ok ? engine.book : null;
+    // the same chain the room is showing; X Layer if Solana has no book to show
+    const chain = wantedChain === "solana" && engine?.ok && engine.solana?.book ? "solana" : "xlayer";
+    const book = engine?.ok ? (chain === "solana" ? engine.solana!.book : engine.book) : null;
     return (
       <div className="min-h-screen bg-ink crt-scanlines px-4 py-6 sm:px-6">
         <div className="max-w-4xl mx-auto space-y-4">
@@ -44,7 +48,7 @@ export default function PortfolioPage() {
               <div className="chunky-border-acid bg-ink-raised rounded-2xl p-5">
                 <h1 className="font-display text-2xl font-bold">Book</h1>
                 <p className="font-mono text-[10px] text-muted-foreground mb-4">
-                  What the Steward wallet actually holds on X Layer{book.observedAt ? `, read ${book.observedAt.slice(0, 16).replace("T", " ")} UTC` : ""}.
+                  What the Steward wallet actually holds on {CHAIN_LABEL[chain]}{book.observedAt ? `, read ${book.observedAt.slice(0, 16).replace("T", " ")} UTC` : ""}.
                 </p>
                 <BookSummary book={book} />
               </div>
@@ -58,7 +62,7 @@ export default function PortfolioPage() {
                   <BookPlan book={book} gate={engine.gate.decision} />
                 </div>
               </div>
-              {engine.backtest && (
+              {chain === "xlayer" && engine.backtest && (
                 <div className="chunky-border bg-ink-raised rounded-2xl p-4">
                   <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground mb-3">Index backtest</h2>
                   <BacktestChart backtest={engine.backtest} />

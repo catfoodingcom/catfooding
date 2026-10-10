@@ -147,6 +147,8 @@ export interface LiveBook {
   holdings: LiveHolding[];
   /** Steward's staged orders, not yet authorized. */
   plan: { side: string; symbol: string; usd: number }[];
+  /** Set while a book is still being built up: how many of the index's legs it holds so far. */
+  initialising?: { held: number; total: number } | null;
 }
 
 /** Index as-if performance: current weights applied back over the window.
@@ -245,6 +247,10 @@ export interface LiveChainRead {
   tokens: LiveToken[];
   /** The crypto satellite's like-for-like on this chain: ETH stays, the chain's own token replaces OKB. */
   satellite: LiveToken[];
+  /** What the wallet actually holds on this chain. Null if it holds nothing there or the read failed. */
+  book: LiveBook | null;
+  /** Fills and deposits on this chain, plus the events every chain shares (calendar, macro view). */
+  activity: LiveActivity[];
 }
 
 export interface EngineState {
@@ -366,13 +372,14 @@ export function verdictFor(token: LiveToken, engine: EngineState): TokenVerdict 
 }
 
 /** The engine as seen from one chain. X Layer is the engine itself. Solana swaps in that chain's
- * token readings, its own crypto satellite (ETH + SOL) and its freshness; the session, calendar and gate are
+ * token readings, crypto satellite (ETH + SOL), book and activity; the session, calendar and gate are
  * shared, because they are about the stocks and the rules, not the chain. Returns null when the
  * chain has no reading. */
 export function engineForChain(engine: EngineState, chain: LiveChain): EngineState | null {
   if (chain === "xlayer") return engine;
   if (!engine.solana) return null;
-  return { ...engine, tokens: engine.solana.tokens, satellite: engine.solana.satellite, ageMinutes: engine.solana.ageMinutes, stale: engine.solana.stale };
+  const s = engine.solana;
+  return { ...engine, tokens: s.tokens, satellite: s.satellite, ageMinutes: s.ageMinutes, stale: s.stale, book: s.book, equity: s.book?.equityUsd ?? null, activity: s.activity };
 }
 
 /** How the real share (the reference the token is checked against) is trading. */
@@ -496,7 +503,14 @@ const POSTURE_CAUTION: Record<string, number> = { defensive: 85, cautious: 65, n
 export function liveVitals(engine: EngineState): LiveVital[] {
   const { book, gate, sentinel, calendar } = engine;
   const targeted = book?.holdings.filter((h) => h.targetPct != null) ?? [];
-  const gap = targeted.reduce((sum, h) => sum + Math.abs(h.pct - h.targetPct!), 0);
+  // A book still being built is judged on the legs it holds, in proportion to each other:
+  // against the whole index it would read as badly off target simply for being unfinished.
+  const init = book?.initialising ?? null;
+  const heldPct = targeted.reduce((sum, h) => sum + h.pct, 0);
+  const heldTarget = targeted.reduce((sum, h) => sum + h.targetPct!, 0);
+  const gap = init && heldPct > 0 && heldTarget > 0
+    ? targeted.reduce((sum, h) => sum + Math.abs((h.pct / heldPct) * 100 - (h.targetPct! / heldTarget) * 100), 0)
+    : targeted.reduce((sum, h) => sum + Math.abs(h.pct - h.targetPct!), 0);
   const planUsd = book?.plan.filter((p) => p.side === "BUY").reduce((sum, p) => sum + p.usd, 0) ?? 0;
   const confidence = gate.council?.confidence?.toLowerCase() ?? "";
   const posture = sentinel?.posture?.toLowerCase() ?? "";
@@ -509,7 +523,7 @@ export function liveVitals(engine: EngineState): LiveVital[] {
       label: "Health",
       color: "#ff5d5d",
       value: book ? clamp100(100 - gap) : 0,
-      caption: book ? `Book is ${gap.toFixed(1)} points off its target weights` : "No book reading",
+      caption: !book ? "No book reading" : init ? `Initialising: ${init.held} of ${init.total} legs held, ${gap.toFixed(1)} points off between them` : `Book is ${gap.toFixed(1)} points off its target weights`,
     },
     {
       key: "energy",

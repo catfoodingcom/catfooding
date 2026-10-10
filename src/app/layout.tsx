@@ -20,7 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "CATFOODING — Raise a cat. Let it hunt.",
   description:
-    "A cat that reads the CoAgentic engine for tokenized stocks on X Layer. Live mode shows the engine's real verdicts and book, read-only; Demo mode paper-trades a simulated market. The cat places no real trades.",
+    "A cat that reads the CoAgentic engine for tokenized stocks on X Layer and Solana. Live mode shows the engine's real verdicts and book, read-only; Demo mode paper-trades a simulated market. The cat places no real trades.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

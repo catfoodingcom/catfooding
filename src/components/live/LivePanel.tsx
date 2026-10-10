@@ -39,6 +39,10 @@ export function LivePanel({ engine, view, chain, onChain, verdicts, satelliteVer
   }
 
   const { gate, session, calendar, sentinel, technical } = engine;
+  // legs a new buyer could enter now on the chain being viewed: a verdict of Hunt or Watch means every check passed
+  const all = [...Object.values(verdicts), ...Object.values(satelliteVerdicts)];
+  const open = all.filter((v) => v.verdict === "HUNT" || v.verdict === "WATCH").length;
+  const total = all.length;
   return (
     <div className="chunky-border-acid bg-ink-raised rounded-2xl p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -48,7 +52,7 @@ export function LivePanel({ engine, view, chain, onChain, verdicts, satelliteVer
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 font-mono text-[10px]">
         <GateReasoning gate={gate} tile={<Fact label="Gate · our book" value={gate.decision === "hold" ? "on target" : (gate.decision ?? "unknown")} sub={gate.council?.stance ? `Council: ${gate.council.stance}` : ""} more />} />
-        <Fact label="Tokens" value="trading 24/7" sub="X Layer, always open" />
+        <Fact label="Tokens" value="trading 24/7" sub={`${CHAIN_LABEL[chain]}, always open`} />
         <Fact
           label="Fair-price check"
           value={session.anchored ? "live" : "waiting"}
@@ -80,9 +84,14 @@ export function LivePanel({ engine, view, chain, onChain, verdicts, satelliteVer
       <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
         The gate above is about <span className="text-cream">our book</span>. The verdicts below are about <span className="text-cream">each token</span>, for
         anyone who could buy it
-        {engine.entry && (
+        {chain === "xlayer" && engine.entry && (
           <>
             : right now {engine.entry.released} of {engine.entry.total} index legs are open to a new entry
+          </>
+        )}
+        {chain === "solana" && (
+          <>
+            : on Solana right now {open} of {total} legs are open to a new entry
           </>
         )}
         .
@@ -113,7 +122,7 @@ export function LivePanel({ engine, view, chain, onChain, verdicts, satelliteVer
           ) : (
             <>
               The same six tokens from the same issuer ({engine.solana?.issuer}), read on <span className="text-cream">Solana</span>. Same rules, different
-              chain. A comparison only: our book is on X Layer, and nothing is held or traded on Solana.
+              chain. The Solana book is real but only just started: it holds the crypto satellite so far, and no stock token yet.
             </>
           )}
         </p>
@@ -134,7 +143,7 @@ export function LivePanel({ engine, view, chain, onChain, verdicts, satelliteVer
       <p className="font-mono text-[9px] text-muted-foreground leading-relaxed">
         {chain === "solana" && <>Solana read {view.ageMinutes ?? "?"} min ago{view.stale ? " (stale)" : ""} · </>}
         Engine read {engine.ageMinutes ?? "?"} min ago{engine.stale ? " (stale)" : ""}
-        {engine.equity != null && ` · Steward book $${engine.equity.toFixed(2)}`}
+        {view.equity != null && ` · ${chain === "solana" ? "Solana book" : "Steward book"} $${view.equity.toFixed(2)}`}
         {engine.failures.length > 0 && ` · unavailable: ${engine.failures.join(", ")}`}. Read-only: the cat shows the engine&apos;s verdict and places no trades. Not
         investment advice.
       </p>

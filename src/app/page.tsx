@@ -75,7 +75,7 @@ export default function LandingPage() {
           </motion.h1>
 
           <p className="font-mono text-sm text-muted-foreground max-w-md leading-relaxed">
-            A cat that reads the CoAgentic engine for tokenized stocks on X&nbsp;Layer. In <em className="text-cream not-italic">Live</em> it shows the
+            A cat that reads the CoAgentic engine for tokenized stocks on X&nbsp;Layer and Solana. In <em className="text-cream not-italic">Live</em> it shows the
             engine&apos;s real verdicts and book, read-only. In <em className="text-cream not-italic">Demo</em> it paper-trades a simulated market. Its mood,
             health, and hunger <em className="text-cream not-italic">are</em> the trading agent&apos;s interface.
           </p>
