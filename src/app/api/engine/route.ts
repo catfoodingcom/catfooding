@@ -24,7 +24,12 @@ import {
 const FEED_BASE = process.env.COAGENTIC_FEED_BASE ?? "https://tv.coagentic.markets";
 const TIMEOUT_MS = 8000;
 
-export const revalidate = 60;
+// Never serve a saved copy. A cached route answers the first visitor after a quiet spell with
+// whatever it last built, which can be hours old: yesterday's verdicts shown as current. Every
+// request reads the feeds; the CDN may share one answer for CDN_SECONDS so a busy page still
+// costs the engine at most a couple of reads a minute.
+export const dynamic = "force-dynamic";
+const CDN_SECONDS = 30;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Raw = Record<string, any>;
@@ -33,7 +38,7 @@ async function feed(name: string, failures: string[]): Promise<Raw | null> {
   try {
     const res = await fetch(`${FEED_BASE}/api/public/${name}`, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
-      next: { revalidate },
+      cache: "no-store",
     });
     if (!res.ok) throw new Error(String(res.status));
     return (await res.json()) as Raw;
@@ -536,5 +541,8 @@ export async function GET() {
     failures,
   };
 
-  return NextResponse.json(state, { status: tei ? 200 : 502 });
+  return NextResponse.json(state, {
+    status: tei ? 200 : 502,
+    headers: { "Cache-Control": tei ? `public, max-age=0, s-maxage=${CDN_SECONDS}` : "no-store" },
+  });
 }
