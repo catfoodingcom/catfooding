@@ -98,6 +98,6 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · shadcn/ui on
 
 ## Built for
 
-Colosseum Crypto World's Fair (September to October 2026). The repository began on 7 September 2026 as the landing page for a Bangkok meetup; the app itself was built from 21 September onward, inside the event window, and the multi-chain work (Solana readings, the chain switch, earnings holds, the engine pulse) in October.
+Colosseum Crypto World's Fair (September to October 2026). The app was built from 21 September 2026 onward, inside the event window, and the multi-chain work (Solana readings, the chain switch, earnings holds, the engine pulse) in October. It grew out of a repository that earlier held a landing page for a meetup; that earlier work is not part of the app.
 
 Nothing here is investment advice.
